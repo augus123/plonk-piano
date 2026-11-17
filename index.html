@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plonk Piano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Grandstander:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout idea: a toy console by a night pond. Plonk (lime monster, piano keys for teeth) sits along the bottom of every screen; chunky sticker-like controls stack above him. One visual world, so one theme. */
+  color-scheme: dark;
+  --ink:#06202a; --pond:#0e3443; --pond-2:#15475a; --paper:#f2fbf0; --mute:#a5c9cc;
+  --plonk:#8be04e; --plonk-d:#58b12a; --sun:#ffc83d; --berry:#ff5d8f;
+  --display:"Bagel Fat One","Arial Rounded MT Bold",ui-rounded,system-ui,sans-serif;
+  --body:"Grandstander","Trebuchet MS",ui-rounded,system-ui,sans-serif;
+  --line:3px solid var(--ink); --drop:0 5px 0 var(--ink); --r:18px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--pond);color:var(--paper);font:500 16px/1.35 var(--body);overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+h2,h3{font-family:var(--display);font-weight:400;text-wrap:balance}
+#app{height:100%;display:flex;flex-direction:column}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+.screen[hidden],[hidden]{display:none!important}
+.scroll{position:relative;flex:1;min-height:0;overflow-y:auto;padding:14px 16px 28px;-webkit-overflow-scrolling:touch}
+
+/* buttons */
+.btn{background:var(--paper);color:var(--ink);border:var(--line);border-radius:14px;box-shadow:var(--drop);padding:9px 16px;font-weight:800;line-height:1.15;transition:transform .06s,box-shadow .06s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn.sun{background:var(--sun)} .btn.lime{background:var(--plonk)} .btn.berry{background:var(--berry)}
+.btn.sm{padding:6px 12px;font-size:14px;border-radius:12px;box-shadow:0 4px 0 var(--ink)}
+.btn.on{background:var(--plonk)}
+.ib{width:42px;height:42px;flex:none;display:grid;place-items:center;padding:0;font-size:20px;background:var(--paper);color:var(--ink);border:var(--line);border-radius:13px;box-shadow:0 4px 0 var(--ink);font-weight:800}
+.ib:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.ib.on{background:var(--plonk)}
+.ib svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+
+/* top bar */
+.bar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 16px 8px}
+.bar h2{font-size:clamp(19px,5.4vw,24px);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttl{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.ttl b{font-family:var(--display);font-weight:400;font-size:clamp(16px,4.6vw,19px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{height:12px;border:2px solid var(--ink);border-radius:8px;background:var(--pond-2);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--sun);border-right:2px solid var(--ink);transition:width .25s}
+
+/* home */
+.home-top{flex:1;min-height:0;overflow-y:auto;padding:18px 16px 10px;display:flex;flex-direction:column;gap:12px;max-width:760px;width:100%}
+.logo{font:400 clamp(58px,17vw,104px)/.85 var(--display);color:var(--plonk);letter-spacing:.01em;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink)}
+.tag{font-size:17px;font-weight:700;color:var(--mute)}
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:4px}
+.door{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;align-items:center;text-align:left;padding:13px 16px;background:var(--paper);color:var(--ink);border:var(--line);border-radius:var(--r);box-shadow:0 6px 0 var(--ink)}
+.door:active{transform:translateY(5px);box-shadow:0 1px 0 var(--ink)}
+.door.kid{background:var(--sun)}
+.door .em{grid-row:1/3;font-size:38px;line-height:1}
+.door b{font:400 23px/1.05 var(--display)}
+.door small{font-size:14px;font-weight:700;opacity:.8}
+.home-row{display:flex;flex-wrap:wrap;gap:10px}
+.hero-wrap{flex:none;position:relative;height:clamp(170px,40%,340px)}
+.hero-wrap canvas,#stageWrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hero-bubble{position:absolute;right:16px;top:-6px;z-index:1;background:var(--paper);color:var(--ink);border:var(--line);border-radius:14px;padding:5px 12px;font-weight:800;font-size:15px;transform:rotate(3deg);pointer-events:none}
+
+/* kids map */
+.world{margin-bottom:22px}
+.world h3{font-size:25px;color:var(--wc);display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.world .wn{font:800 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:var(--wc);border-radius:8px;padding:3px 8px}
+.path{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px 10px}
+.lv{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:0;color:var(--paper)}
+.lv:nth-child(even){transform:translateY(10px)}
+.lv-ic{width:66px;height:66px;display:grid;place-items:center;font-size:30px;background:var(--pond-2);border:var(--line);border-radius:50%;box-shadow:0 5px 0 var(--ink)}
+.lv:not(.locked) .lv-ic{background:var(--paper)}
+.lv.done .lv-ic{background:var(--wc)}
+.lv:active:not(.locked) .lv-ic{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.lv.next .lv-ic{animation:bob 1s ease-in-out infinite;background:var(--sun)}
+.lv.locked{opacity:.55;cursor:default}
+.lv-st{font-size:14px;letter-spacing:1px;color:var(--sun);height:17px}
+.lv-t{font-size:13px;font-weight:700;line-height:1.15;text-align:center;max-width:100px}
+@keyframes bob{50%{transform:translateY(-6px)}}
+
+/* song list */
+.upload{background:var(--pond-2);border:3px dashed var(--mute);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;margin-bottom:20px}
+.upload.over{border-color:var(--sun);background:#1b566c}
+.upload b{font:400 22px var(--display)}
+.upload p{color:var(--mute);max-width:60ch}
+.err{color:#ffd0dc!important;font-weight:700}
+#songList h3{font-size:20px;margin:6px 0 10px}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:22px}
+.song{display:flex;align-items:center;gap:10px;background:var(--paper);color:var(--ink);border:var(--line);border-radius:14px;box-shadow:var(--drop);padding:10px 12px;text-align:left;min-width:0}
+.song:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.song .s-main{flex:1;min-width:0}
+.song .s-name{font-weight:800;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.song .s-sub{font-size:13px;font-weight:700;opacity:.7}
+.song .s-st{color:#c98a00;letter-spacing:1px;font-size:14px;flex:none}
+.song .s-del{flex:none;width:30px;height:30px;border-radius:9px;border:2px solid var(--ink);background:#ffd0dc;font-weight:800;padding:0}
+.empty{color:var(--mute);margin-bottom:22px}
+
+/* play screen */
+#chips{flex:none;display:flex;gap:8px;overflow-x:auto;padding:2px 16px 12px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+.seg{flex:none;display:flex;border:var(--line);border-radius:12px;overflow:hidden;background:var(--paper);box-shadow:0 4px 0 var(--ink)}
+.seg button{border:0;background:none;color:var(--ink);padding:6px 11px;font-weight:800;font-size:14px;white-space:nowrap}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button.on{background:var(--sun)}
+.seg span{padding:6px 4px;color:var(--ink);font-weight:800;font-size:14px;min-width:50px;text-align:center;font-variant-numeric:tabular-nums}
+.chip{flex:none;white-space:nowrap}
+#bubble{flex:none;margin:2px 16px 14px;position:relative;background:var(--paper);color:var(--ink);border:var(--line);border-radius:var(--r);padding:10px 14px;font-weight:800;font-size:clamp(17px,4.4vw,24px);line-height:1.2;text-wrap:balance;display:flex;align-items:center;gap:10px;min-height:54px}
+#bubble::after{content:"";position:absolute;left:calc(50% - 12px);bottom:-13px;width:20px;height:20px;background:var(--paper);border-right:var(--line);border-bottom:var(--line);transform:rotate(45deg)}
+#bubbleBig{font:400 44px/1 var(--display);flex:none}
+#panel{flex:1;min-height:0;padding:0 16px 10px;display:flex;align-items:center;justify-content:center}
+#stageWrap{position:relative;flex:1;min-height:150px}
+.lay-song #panel,.lay-keys #panel{display:none}
+.lay-keys #bubble{margin-top:auto;font-size:clamp(19px,5.2vw,30px);padding:14px 16px}
+.lay-keys #stageWrap{flex:none;height:clamp(200px,54%,420px)}
+.lay-panel #stageWrap{flex:none;height:clamp(110px,24%,200px)}
+#hud{position:absolute;left:10px;top:12px;font-weight:800;font-size:14px;background:rgba(6,32,42,.7);border-radius:10px;padding:4px 9px;pointer-events:none;font-variant-numeric:tabular-nums}
+.hl{display:flex;gap:12px;width:100%;max-width:620px;align-items:stretch}
+.hl-b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:12px 6px;background:var(--paper);color:var(--ink);border:var(--line);border-radius:var(--r);box-shadow:0 6px 0 var(--ink);font-weight:800;font-size:20px}
+.hl-b:active{transform:translateY(5px);box-shadow:0 1px 0 var(--ink)}
+.hl-b span{font-size:clamp(44px,13vw,76px);line-height:1.1}
+.hl-b.again{flex:.6;background:var(--sun);font-size:15px}
+.hl-b.again span{font-size:34px}
+.hl-b.no{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.hand{width:min(100%,360px);max-height:100%}
+.hand .fin{cursor:pointer}
+.hand .fin rect{fill:var(--plonk);stroke:var(--ink);stroke-width:5}
+.hand .fin.yes rect{fill:var(--sun)} .hand .fin.no rect{fill:var(--berry)}
+.hand .palm{fill:var(--plonk);stroke:var(--ink);stroke-width:5}
+.hand circle{fill:var(--paper);stroke:var(--ink);stroke-width:3}
+.hand text{font:800 20px var(--body);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+
+#soundOn{position:fixed;z-index:15;top:10px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);font-size:15px}
+#soundOn:active{transform:translateX(-50%) translateY(4px)}
+/* sheets and results */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(3,16,22,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet-card{background:var(--paper);color:var(--ink);border:var(--line);border-bottom:0;border-radius:22px 22px 0 0;width:min(100%,620px);max-height:86%;display:flex;flex-direction:column}
+.sheet-card header{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+.sheet-card header h3{flex:1;font-size:24px}
+#sheetBody{overflow-y:auto;padding:4px 16px 22px;display:flex;flex-direction:column;gap:14px}
+.opt{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-start;justify-content:space-between;border:2px solid var(--ink);border-radius:14px;padding:12px}
+.opt>div{flex:1 1 220px;min-width:0}
+.opt p{font-size:14px;opacity:.8;margin-top:3px;max-width:52ch}
+.opt .status{font-weight:800;opacity:1;color:#1f6f1a}
+.opt .status.bad{color:#b3124a}
+.opt .btn{flex:none}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:700}
+.row select,.row input[type=range]{max-width:55%}
+select{background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:6px 8px;font-weight:700}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--plonk-d)}
+input[type=range]{accent-color:var(--plonk-d)}
+.fine{font-size:13px;opacity:.75}
+.stick{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:8px}
+.stick span{aspect-ratio:1;display:grid;place-items:center;font-size:28px;border:2px solid var(--ink);border-radius:12px;background:#fff}
+.stick span.no{background:#d9e6dd;color:#8aa39a;font:800 20px var(--body)}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(3,16,22,.72);display:grid;place-items:center;padding:16px;overflow:hidden}
+.res-card{position:relative;background:var(--paper);color:var(--ink);border:var(--line);border-radius:24px;box-shadow:0 8px 0 var(--ink);padding:20px 20px 22px;width:min(100%,420px);text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.res-card h2{font-size:34px;line-height:1}
+.stars{font-size:52px;line-height:1;color:#f5b400;-webkit-text-stroke:2.5px var(--ink);letter-spacing:4px}
+.stars i{font-style:normal;color:#cfdcd3}
+#resSticker{font-size:64px;line-height:1}
+#resSticker small{display:block;font:800 14px var(--body);margin-top:4px}
+.res-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+.conf{position:absolute;top:-20px;width:11px;height:16px;border:2px solid var(--ink);border-radius:3px;animation:fall linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+@media (max-height:520px){
+  .bar{padding:6px 12px 4px} #chips{padding-bottom:8px} #bubble{margin-bottom:12px;padding:6px 12px;min-height:0;font-size:17px}
+  .logo{font-size:46px} .home-top{gap:8px;padding-top:10px} .tag{display:none}
+  .lay-panel #stageWrap{height:84px;min-height:0} .lay-keys #stageWrap{height:58%}
+}
+@media (prefers-reduced-motion:reduce){.lv.next .lv-ic,.conf,.hl-b.no{animation:none} .conf{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="home" class="screen">
+    <div class="home-top">
+      <h1 class="logo">Plonk</h1>
+      <p class="tag">The piano monster who eats songs.</p>
+      <div class="doors">
+        <button class="door kid" id="goKids"><span class="em">🍪</span><b>Kids’ Adventure</b><small>Ages 5 and up · <span id="homeStars">0</span> ★</small></button>
+        <button class="door" id="goSongs"><span class="em">🎼</span><b>Song Player</b><small>Play any song from a MIDI file</small></button>
+      </div>
+      <div class="home-row">
+        <button class="btn sm" id="goConnect">🎹 Connect a piano</button>
+        <button class="btn sm" id="goSettings">Settings</button>
+      </div>
+    </div>
+    <div class="hero-wrap"><div class="hero-bubble" id="heroBubble">Tap my teeth!</div><canvas id="hero" aria-label="Plonk the piano monster. His teeth are piano keys you can play."></canvas></div>
+  </section>
+
+  <section id="kids" class="screen" hidden>
+    <header class="bar">
+      <button class="ib" data-go="home" aria-label="Back to start"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h2>Kids’ Adventure</h2>
+      <button class="btn sm" id="stickersBtn" aria-label="Sticker book">🏅 <span id="stickerCount"></span></button>
+    </header>
+    <div id="map" class="scroll"></div>
+  </section>
+
+  <section id="songs" class="screen" hidden>
+    <header class="bar">
+      <button class="ib" data-go="home" aria-label="Back to start"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h2>Song Player</h2>
+      <button class="btn sm" id="songsConnect">🎹 Connect</button>
+    </header>
+    <div class="scroll" id="songList">
+      <div class="upload" id="drop">
+        <b>Add your own song</b>
+        <p>Choose a MIDI file (.mid or .midi). Free ones are easy to find: search for a song name plus “piano MIDI”.</p>
+        <button class="btn sun" id="pick">Choose a MIDI file</button>
+        <p id="upErr" class="err" hidden></p>
+      </div>
+      <h3 id="mineH">My songs</h3><div id="mine" class="list"></div>
+      <h3>Built-in songs</h3><div id="builtin" class="list"></div>
+    </div>
+    <input type="file" id="file" accept=".mid,.midi,.kar,.rmi,audio/midi,audio/x-midi" hidden>
+  </section>
+
+  <section id="play" class="screen" hidden>
+    <header class="bar">
+      <button class="ib" id="pBack" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="ttl"><b id="pTitle"></b><div class="meter" id="pMeter"><i></i></div></div>
+      <button class="btn sm" id="pHear">👂 Hear it</button>
+      <button class="ib" id="pRestart" aria-label="Start again"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/></svg></button>
+      <button class="ib" id="pPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path id="pPlayIcon" d="M8 5l11 7-11 7z"/></svg></button>
+      <button class="ib" id="pConn" aria-label="Connect a piano">🎹</button>
+    </header>
+    <div id="chips">
+      <div class="seg" id="cMode" role="group" aria-label="Mode"><button data-v="wait">Wait for me</button><button data-v="rhythm">Keep time</button><button data-v="listen">Listen</button></div>
+      <div class="seg" role="group" aria-label="Speed"><button id="cSlow" aria-label="Slower">−</button><span id="cSpeed">100%</span><button id="cFast" aria-label="Faster">+</button></div>
+      <div class="seg" id="cHands" role="group" aria-label="Hands"><button data-v="both">Both hands</button><button data-v="R">Right</button><button data-v="L">Left</button></div>
+      <button class="btn sm chip" id="cEasy">Melody only</button>
+      <button class="btn sm chip" id="cLoop">Loop</button>
+      <button class="btn sm chip" id="cMetro">Metronome</button>
+      <button class="btn sm chip" id="cTracks">Tracks</button>
+      <button class="btn sm chip" id="cSet">Settings</button>
+    </div>
+    <div id="bubble" role="status"><span id="bubbleBig"></span><span id="bubbleTxt"></span></div>
+    <div id="panel"></div>
+    <div id="stageWrap"><canvas id="stage" aria-label="Falling notes and piano keys"></canvas><div id="hud" hidden></div></div>
+  </section>
+</div>
+
+<button id="soundOn" class="btn sun">🔈 Tap here to turn sound on</button>
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <header><h3 id="sheetTitle"></h3><button class="btn sm" id="sheetClose">Done</button></header>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+<div id="result" class="overlay" hidden>
+  <div class="res-card" role="dialog" aria-modal="true">
+    <div class="stars" id="resStars"></div>
+    <h2 id="resTitle"></h2>
+    <p id="resText"></p>
+    <div id="resSticker"></div>
+    <div class="res-btns" id="resBtns"></div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ========== helpers ========== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const SOLF = ['Do', 'Do♯', 'Re', 'Re♯', 'Mi', 'Fa', 'Fa♯', 'Sol', 'Sol♯', 'La', 'La♯', 'Ti'];
+const SNACK = { 0: '🍪', 2: '🍩', 4: '🥚', 5: '🍟', 7: '🍇', 9: '🍎', 11: '🍌' };
+const SNACK_WORD = { 0: 'cookie', 2: 'donut', 4: 'egg', 5: 'fries', 7: 'grapes', 9: 'apple', 11: 'banana' };
+const BLACK = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0];
+const pc = m => ((m % 12) + 12) % 12;
+const isBlack = m => BLACK[pc(m)] === 1;
+const midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+// one colour per note name (the classroom "colour note" convention), darker twin for the sharps
+const PC_COL = ['#ff5c68', '#d63c58', '#ff9a2e', '#d67718', '#ffd84a', '#5fd470', '#2fa850', '#27cdbd', '#149c8f', '#5b9bff', '#3272e0', '#bd83ff'];
+const pcColor = m => PC_COL[pc(m)];
+const COL = { ink: '#06202a', pond: '#0e3443', pond2: '#15475a', paper: '#f2fbf0', plonk: '#8be04e', plonkD: '#58b12a', sun: '#ffc83d', berry: '#ff5d8f', right: '#ffc83d', left: '#56ccf2', bg: '#86aab0' };
+function parseNote(s) {
+  const m = /^([A-G])([#b]?)(-?\d)$/.exec(s);
+  if (!m) throw new Error('bad note ' + s);
+  return { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (+m[3] + 1) * 12;
+}
+function lowerBound(a, t) { let lo = 0, hi = a.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid].t < t) lo = mid + 1; else hi = mid; } return lo; }
+function whiteIndex(m) { return Math.floor(m / 12) * 7 + [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][pc(m)]; }
+
+/* ========== saved state (this browser only) ========== */
+const DEF = { settings: { voice: true, labels: 'letters', colors: 'rainbow', volume: 0.8, micSens: 1, midiSound: true, unlockAll: false }, progress: {}, best: {} };
+let S = JSON.parse(JSON.stringify(DEF));
+function mergeState(o) {
+  if (!o || typeof o !== 'object') return;
+  if (o.settings) Object.assign(S.settings, o.settings);
+  if (o.progress) Object.assign(S.progress, o.progress);
+  if (o.best) Object.assign(S.best, o.best);
+}
+function loadState() { try { mergeState(JSON.parse(localStorage.getItem('plonk.v1'))); } catch (e) { } }
+function saveState() { try { localStorage.setItem('plonk.v1', JSON.stringify(S)); } catch (e) { } }
+
+/* ========== sound: a small built-in piano and a few silly noises ========== */
+const Sound = {
+  ctx: null, out: null, wave: null, live: new Map(), until: new Map(),
+  init() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => { }); return true; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
+    try {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }  // iPhone: keep sound on even with the silent switch
+      const c = this.ctx = new AC();
+      this.out = c.createGain(); this.out.gain.value = S.settings.volume;
+      const comp = c.createDynamicsCompressor(); this.out.connect(comp); comp.connect(c.destination);
+      this.wave = c.createPeriodicWave(new Float32Array(9), new Float32Array([0, 1, .52, .26, .15, .08, .05, .03, .015]));
+    } catch (e) { this.ctx = null; return false; }
+    return true;
+  },
+  unlock() {  // phones only let sound start from inside a finished tap
+    if (!this.init()) return; const c = this.ctx;
+    if (c.state !== 'running') c.resume().catch(() => { });
+    if (!this.primed) { try { const b = c.createBufferSource(); b.buffer = c.createBuffer(1, 1, 22050); b.connect(c.destination); b.start(0); this.primed = c.state === 'running'; } catch (e) { } }
+  },
+  // Start sound again from scratch, inside a real button tap. Used by the "turn sound on" button.
+  restart() {
+    try { if (this.ctx && this.ctx.state !== 'running' && !Mic.active) { this.ctx.close().catch(() => { }); this.ctx = null; this.live.clear(); this.until.clear(); this.primed = false; } } catch (e) { this.ctx = null; }
+    try {  // a silent looping clip makes iPhones treat the page as media, so the silent switch does not mute it
+      if (!this.keep) {
+        const n = 4000, b = new Uint8Array(44 + n), dv = new DataView(b.buffer), w = (o, t) => { for (let i = 0; i < t.length; i++) b[o + i] = t.charCodeAt(i); };
+        w(0, 'RIFF'); dv.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); w(36, 'data'); dv.setUint32(40, n, true); b.fill(128, 44);
+        const a = this.keep = new Audio(URL.createObjectURL(new Blob([b], { type: 'audio/wav' }))); a.loop = true; a.setAttribute('playsinline', '');
+      }
+      const pr = this.keep.play(); if (pr && pr.catch) pr.catch(() => { });
+    } catch (e) { }
+    this.unlock();
+  },
+  state() { return this.ctx ? this.ctx.state : 'not started'; },
+  setVolume(v) { S.settings.volume = v; if (this.out) this.out.gain.value = v; },
+  now() { return this.ctx ? this.ctx.currentTime : 0; },
+  _voice(m, vel, t, dur) {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.setPeriodicWave(this.wave); o.frequency.value = midiFreq(m);
+    const peak = 0.3 * vel * (m < 50 ? 1.35 : m > 84 ? 0.7 : 1), decay = clamp(3.4 - (m - 48) * 0.045, 0.8, 3.6);
+    const k = peak * 0.36, floor = 0.0008;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.006);
+    let end = t + decay;
+    if (dur != null && dur < decay - 0.05) {
+      const tr = t + Math.max(0.07, dur);
+      if (tr <= t + 0.25) g.gain.exponentialRampToValueAtTime(peak * Math.pow(0.36, (tr - t - 0.006) / 0.244), tr);
+      else { g.gain.exponentialRampToValueAtTime(k, t + 0.25); g.gain.exponentialRampToValueAtTime(k * Math.pow(floor / k, (tr - t - 0.25) / (decay - 0.25)), tr); }
+      g.gain.linearRampToValueAtTime(0, tr + 0.1); end = tr + 0.1;
+    } else { g.gain.exponentialRampToValueAtTime(k, t + 0.25); g.gain.exponentialRampToValueAtTime(floor, end); }
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(end + 0.05);
+    this.until.set(m, Math.max(this.until.get(m) || 0, end));
+    return { o, g };
+  },
+  noteOn(m, vel = 0.8) { if (!this.init()) return; this.noteOff(m); this.live.set(m, this._voice(m, vel, this.ctx.currentTime, null)); },
+  noteOff(m) {
+    const v = this.live.get(m); if (!v) return; this.live.delete(m);
+    const t = this.ctx.currentTime;
+    try { const cur = v.g.gain.value; v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(cur, t); v.g.gain.linearRampToValueAtTime(0, t + 0.14); v.o.stop(t + 0.2); } catch (e) { }
+    this.until.set(m, t + 0.2);
+  },
+  play(m, vel = 0.7, dur = 0.4, delay = 0) { if (!this.init()) return; this._voice(m, vel, this.ctx.currentTime + delay, dur); },
+  allOff() { for (const m of Array.from(this.live.keys())) this.noteOff(m); },
+  isSounding(m) { return this.ctx && this.ctx.currentTime < (this.until.get(m) || 0) + 0.3; },
+  _blip(type, f0, f1, dur, vol, delay = 0) {
+    if (!this.init()) return; const c = this.ctx, t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + dur + 0.05);
+  },
+  yum() { this._blip('sine', 620, 980, 0.11, 0.16); },
+  bonk() { this._blip('triangle', 190, 80, 0.2, 0.22); },
+  tick(strong) { this._blip('square', strong ? 1500 : 1000, strong ? 1400 : 950, 0.035, 0.1); },
+  burp() { this._blip('sawtooth', 120, 44, 0.42, 0.2); this._blip('square', 70, 38, 0.36, 0.1, 0.05); },
+  fanfare() { [60, 64, 67, 72, 76].forEach((m, i) => this.play(m, 0.8, 0.3, i * 0.11)); }
+};
+
+/* ========== Plonk's voice (the browser's own speech) ========== */
+const Speech = { broken: false };
+function say(text, cb) {
+  const tk = App.token; let done = false;
+  const fin = () => { if (done) return; done = true; Mic.hold(0.3); if (cb && tk === App.token) cb(); };
+  const clean = text.replace(/[^\x20-\x7e’…]/g, '').trim(), ss = window.speechSynthesis;
+  if (!S.settings.voice || Speech.broken || !ss || !window.SpeechSynthesisUtterance) { if (cb) setTimeout(fin, 500); return; }
+  try {
+    ss.cancel(); const u = new SpeechSynthesisUtterance(clean); u.rate = 0.95; u.pitch = 1.4; u.lang = 'en-US';
+    let started = false; u.onstart = () => { started = true; }; u.onend = u.onerror = fin;
+    Mic.hold(clean.length * 0.075 + 0.8); ss.speak(u);
+    setTimeout(() => { if (!started && !done && !ss.speaking && !ss.pending) { Speech.broken = true; fin(); } }, 1500);  // some viewers have no voice: carry on without it
+    setTimeout(fin, clean.length * 85 + 2000);
+  } catch (e) { fin(); }
+}
+function hush() { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { } }
+
+/* ========== reading MIDI files ========== */
+const GM_FAMILY = ['Piano', 'Mallets', 'Organ', 'Guitar', 'Bass', 'Strings', 'Ensemble', 'Brass', 'Reed', 'Flute', 'Synth lead', 'Synth pad', 'Synth FX', 'World', 'Percussion', 'Effects'];
+function parseMidi(buf) {
+  const u = new Uint8Array(buf); let p = 0;
+  const tag = i => String.fromCharCode(u[i], u[i + 1], u[i + 2], u[i + 3]);
+  const u32 = i => ((u[i] << 24) | (u[i + 1] << 16) | (u[i + 2] << 8) | u[i + 3]) >>> 0, u16 = i => (u[i] << 8) | u[i + 1];
+  while (p < u.length - 14 && tag(p) !== 'MThd') p++;
+  if (p >= u.length - 14) throw new Error('That file is not a MIDI file. MIDI files end in .mid or .midi.');
+  const hlen = u32(p + 4), ntr = u16(p + 10), div = u16(p + 12); p += 8 + hlen;
+  const tempos = [], raw = [], trackInfo = []; let timeSig = null, endTick = 0;
+  for (let ti = 0; ti < ntr && p < u.length - 8; ti++) {
+    while (p < u.length - 8 && tag(p) !== 'MTrk') p++;
+    if (p >= u.length - 8) break;
+    const len = u32(p + 4); let q = p + 8; const end = Math.min(u.length, q + len); p = end;
+    let tick = 0, run = 0; const open = new Map(), info = { name: '', program: {} };
+    const vlq = () => { let v = 0, b; do { b = u[q++]; v = (v * 128) + (b & 0x7f); } while ((b & 0x80) && q < end); return v; };
+    while (q < end) {
+      tick += vlq(); let st = u[q];
+      if (st === 0xff) {
+        const type = u[q + 1]; q += 2; const l = vlq();
+        if (type === 0x51 && l >= 3) tempos.push({ tick, us: (u[q] << 16) | (u[q + 1] << 8) | u[q + 2] });
+        else if (type === 0x03 && !info.name) { let s = ''; for (let i = 0; i < l && i < 60; i++) s += String.fromCharCode(u[q + i]); info.name = s.replace(/[^\x20-\x7e]/g, '').trim(); }
+        else if (type === 0x58 && l >= 2 && !timeSig) timeSig = { num: u[q] || 4, den: 1 << u[q + 1] };
+        q += l; if (type === 0x2f) break; continue;
+      }
+      if (st === 0xf0 || st === 0xf7) { q++; const l = vlq(); q += l; continue; }
+      if (st & 0x80) { run = st; q++; } else st = run;
+      const type = st & 0xf0, ch = st & 0x0f;
+      if (type === 0x90 || type === 0x80) {
+        const note = u[q++], vel = u[q++], key = ch * 128 + note;
+        if (type === 0x90 && vel > 0) { let a = open.get(key); if (!a) open.set(key, a = []); a.push({ tick, vel }); }
+        else { const a = open.get(key); if (a && a.length) { const o = a.shift(); raw.push({ midi: note, tick: o.tick, end: tick, vel: o.vel / 127, ch, track: ti }); } }
+      } else if (type === 0xc0) { if (info.program[ch] == null) info.program[ch] = u[q]; q += 1; }
+      else if (type === 0xd0) q += 1;
+      else if (type === 0xf0) { /* stray system byte */ }
+      else q += 2;
+    }
+    for (const [key, a] of open) for (const o of a) raw.push({ midi: key % 128, tick: o.tick, end: Math.max(tick, o.tick + 1), vel: o.vel / 127, ch: key >> 7, track: ti });
+    endTick = Math.max(endTick, tick); trackInfo[ti] = info;
+  }
+  if (!raw.length) throw new Error('This MIDI file has no notes in it.');
+  let toSec;
+  if (div & 0x8000) { const fps = 256 - (div >> 8), tpf = div & 0xff; toSec = t => t / (fps * tpf); }
+  else {
+    tempos.sort((a, b) => a.tick - b.tick);
+    const segs = [{ tick: 0, sec: 0, us: 500000 }];
+    for (const e of tempos) { const l = segs[segs.length - 1]; const sec = l.sec + (e.tick - l.tick) * l.us / div / 1e6; if (e.tick === l.tick) l.us = e.us; else segs.push({ tick: e.tick, sec, us: e.us }); }
+    toSec = t => { let lo = 0, hi = segs.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (segs[mid].tick <= t) lo = mid; else hi = mid - 1; } const s = segs[lo]; return s.sec + (t - s.tick) * s.us / div / 1e6; };
+  }
+  const partMap = new Map(), notes = [];
+  for (const r of raw) {
+    const id = r.track + ':' + r.ch; let part = partMap.get(id);
+    if (!part) {
+      const info = trackInfo[r.track] || { name: '', program: {} }, prog = info.program[r.ch];
+      part = { id, drum: r.ch === 9, name: info.name || (r.ch === 9 ? 'Drums' : prog != null ? GM_FAMILY[prog >> 3] : 'Track ' + (r.track + 1)), count: 0, lo: 127, hi: 0, sum: 0, role: 'bg' };
+      partMap.set(id, part);
+    }
+    part.count++; part.lo = Math.min(part.lo, r.midi); part.hi = Math.max(part.hi, r.midi); part.sum += r.midi;
+    const t = toSec(r.tick); notes.push({ midi: r.midi, t, d: Math.max(0.05, toSec(r.end) - t), vel: r.vel, part: id, hand: 'bg' });
+  }
+  notes.sort((a, b) => a.t - b.t || a.midi - b.midi);
+  const parts = Array.from(partMap.values()); parts.forEach(p => p.avg = p.sum / p.count);
+  const beats = [];
+  if (!(div & 0x8000)) { const ts = timeSig || { num: 4, den: 4 }, bt = div * 4 / ts.den; for (let i = 0; i * bt <= endTick && i < 20000; i++) beats.push({ t: toSec(i * bt), bar: i % ts.num === 0 }); }
+  let duration = 0; for (const n of notes) duration = Math.max(duration, n.t + n.d);
+  return { notes, parts, beats, duration };
+}
+function assignRoles(parts) {
+  const ps = parts.filter(p => !p.drum && p.count > 0);
+  parts.forEach(p => p.role = p.drum ? 'off' : 'bg');
+  if (!ps.length) return;
+  if (ps.length === 1) ps[0].role = ps[0].lo >= 53 ? 'R' : 'split';
+  else if (ps.length === 2) { const hiFirst = ps[0].avg >= ps[1].avg; (hiFirst ? ps[0] : ps[1]).role = 'R'; (hiFirst ? ps[1] : ps[0]).role = 'L'; }
+  else {
+    const rx = /right|\brh\b|r\.h|treble|melody|vocal|lead|voice/i, lx = /left|\blh\b|l\.h/i;
+    let r = ps.find(p => rx.test(p.name)); const l = ps.find(p => lx.test(p.name) && p !== r);
+    if (!r) { const big = Math.max(...ps.map(p => p.count)); const cand = ps.filter(p => p.count >= big * 0.15 && p.avg >= 55 && p !== l); r = (cand.length ? cand : ps).slice().sort((a, b) => b.avg - a.avg)[0]; }
+    r.role = 'R'; if (l) l.role = 'L';
+  }
+}
+function applyRoles(song) {
+  const by = new Map(song.parts.map(p => [p.id, p]));
+  for (const n of song.notes) { const p = by.get(n.part); n.hand = !p ? 'bg' : p.role === 'split' ? (n.midi >= 60 ? 'R' : 'L') : p.role; }
+}
+function midiToSong(buf, name) {
+  const m = parseMidi(buf); assignRoles(m.parts);
+  const song = { id: 'u:' + name, name, notes: m.notes, parts: m.parts, beats: m.beats, duration: m.duration };
+  applyRoles(song); return song;
+}
+
+/* ========== listening through the microphone ========== */
+// Works on the frequency picture of the sound. A note counts as heard when its own pitch
+// stands out as a peak; quieter copies one or two octaves up (overtones) are set aside as "maybe".
+function analyzeSpectrum(db, sampleRate, fftSize, absT, lo = 36, hi = 96) {
+  const binHz = sampleRate / fftSize, tmp = []; let top = -Infinity;
+  for (let k = Math.round(80 / binHz), e = Math.min(db.length - 1, Math.round(4500 / binHz)); k < e; k++) { if (db[k] > top) top = db[k]; if (k % 4 === 0) tmp.push(db[k]); }
+  tmp.sort((a, b) => a - b); const floor = tmp[tmp.length >> 1] || -120, T = Math.max(absT, floor + 20, top - 28);
+  const peak = F => {
+    const k0 = F / binHz, tol = Math.max(1, k0 * 0.0204);
+    const a = Math.max(2, Math.round(k0 - tol)), b = Math.min(db.length - 3, Math.round(k0 + tol)); if (b < a) return -Infinity;
+    let km = a; for (let k = a + 1; k <= b; k++) if (db[k] > db[km]) km = k;
+    if (db[km] < T || db[km - 1] > db[km] + 0.5 || db[km + 1] > db[km] + 0.5) return -Infinity;
+    return db[km];
+  };
+  // Low notes sit too close together to tell apart by their own pitch, so judge them by two overtones that are far enough apart.
+  const fmin = 42 * binHz, raw = new Map();
+  for (let m = lo; m <= hi; m++) {
+    const f = midiFreq(m), h0 = Math.max(1, Math.ceil(fmin / f)); let L = peak(f * h0);
+    if (L > -Infinity && h0 > 1) { const L2 = peak(f * (h0 + 1)); L = L2 > -Infinity ? Math.min(L, L2) : -Infinity; }
+    if (L > -Infinity) raw.set(m, L);
+  }
+  const sure = new Map(), maybe = new Map(), OVER = [12, 19, 24, 28, 31, 34, 36, 38, 40, 43];
+  for (const [m, L] of raw) {
+    if ((raw.get(m - 1) || -Infinity) >= L + 10 || (raw.get(m + 1) || -Infinity) >= L + 10) continue;  // spill from a louder neighbour
+    let over = false; for (const off of OVER) if ((raw.get(m - off) || -Infinity) >= L - 15) { over = true; break; }
+    (over ? maybe : sure).set(m, L);
+  }
+  return { sure, maybe, floor, top };
+}
+const Mic = {
+  active: false, stream: null, src: null, an: null, buf: null, st: new Map(), holdUntil: 0, heard: null, level: -120,
+  async start() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { const e = new Error('nomic'); e.name = 'NoMic'; throw e; }
+    if (!Sound.init()) { const e = new Error('noaudio'); e.name = 'NoMic'; throw e; }
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const c = Sound.ctx; this.src = c.createMediaStreamSource(this.stream);
+    this.an = c.createAnalyser(); this.an.fftSize = 8192; this.an.smoothingTimeConstant = 0;
+    this.src.connect(this.an); this.buf = new Float32Array(this.an.frequencyBinCount); this.st.clear(); this.active = true;
+  },
+  stop() {
+    this.active = false; try { this.stream.getTracks().forEach(t => t.stop()); this.src.disconnect(); } catch (e) { }
+    for (const [m, s] of this.st) if (s.on) Input.off(m, 'mic'); this.st.clear(); this.heard = null;
+  },
+  hold(sec) { this.holdUntil = performance.now() / 1000 + sec; },
+  tick(now) {
+    if (!this.active) return;
+    this.an.getFloatFrequencyData(this.buf);
+    if (now < this.holdUntil) { for (const s of this.st.values()) { s.cnt = 0; s.hist.length = 0; } return; }
+    const absT = [-60, -70, -80][S.settings.micSens] ?? -70;
+    const r = analyzeSpectrum(this.buf, Sound.ctx.sampleRate, this.an.fftSize, absT);
+    this.level = r.top; let loud = null, loudL = -Infinity;
+    const seen = new Set();
+    const handle = (m, L, kind) => {
+      seen.add(m); let s = this.st.get(m); if (!s) this.st.set(m, s = { on: false, cnt: 0, off: 0, hist: [], last: -9, since: now });
+      s.off = 0; if (s.cnt++ === 0) s.since = now; let fire = false;
+      if (!s.on) { if (now - s.since >= (m < 55 ? 0.09 : 0.045)) { s.on = true; s.kind = kind; s.sure = 0; fire = true; } }
+      else if (s.kind === 'mic?' && now - s.last < 0.4) {  // first heard as a possible overtone, then clearly on its own: report it properly
+        if (kind !== 'mic') s.sure = 0; else if (!s.sure) s.sure = now; else if (now - s.sure >= 0.06) { s.kind = 'mic'; if (!Sound.isSounding(m)) Input.on(m, 'mic', 0.8); }
+      }
+      else {
+        let mn = Infinity; for (const h of s.hist) if (h.t >= Math.max(s.last + 0.2, now - 0.32)) mn = Math.min(mn, h.L);
+        const prev = s.hist.length ? s.hist[s.hist.length - 1].L : L;
+        if (L - mn >= 8 && L > prev && now - s.last > 0.22) fire = true;
+      }
+      s.hist.push({ t: now, L }); if (s.hist.length > 40) s.hist.shift();
+      if (kind === 'mic' && L > loudL) { loudL = L; loud = m; }
+      if (fire) { s.last = now; s.kind = kind; s.sure = 0; s.hist.length = 0; s.hist.push({ t: now, L }); if (!Sound.isSounding(m)) Input.on(m, kind, 0.8); }
+    };
+    for (const [m, L] of r.sure) handle(m, L, 'mic');
+    for (const [m, L] of r.maybe) handle(m, L, 'mic?');
+    for (const [m, s] of this.st) if (!seen.has(m)) { s.cnt = 0; if (s.on && ++s.off >= 5) { s.on = false; s.hist.length = 0; Input.off(m, 'mic'); } }
+    this.heard = loud;
+  }
+};
+
+/* ========== MIDI keyboards ========== */
+const MidiIn = {
+  access: null, names: [],
+  async connect() {
+    if (!navigator.requestMIDIAccess) { const e = new Error('nomidi'); e.name = 'NoMidi'; throw e; }
+    this.access = await navigator.requestMIDIAccess(); this.bind();
+    this.access.onstatechange = () => { this.bind(); if (window.refreshConnect) window.refreshConnect(); };
+  },
+  bind() {
+    this.names = [];
+    for (const inp of this.access.inputs.values()) {
+      if (inp.state === 'disconnected') continue; this.names.push(inp.name || 'MIDI keyboard');
+      inp.onmidimessage = e => {
+        const st = e.data[0] & 0xf0, d1 = e.data[1], d2 = e.data[2];
+        if (st === 0x90 && d2 > 0) Input.on(d1, 'midi', 0.35 + 0.65 * d2 / 127); else if (st === 0x80 || (st === 0x90 && d2 === 0)) Input.off(d1, 'midi');
+      };
+    }
+  }
+};
+/* ========== built-in tunes (all traditional or original) ========== */
+// "E4 D4 C4:2" = note, note, note held 2 beats. R = rest, + joins a chord, | is only for reading.
+function tune(str, bpm, hand) {
+  const beat = 60 / bpm; let t = 0; const out = [];
+  for (const tok of str.trim().split(/\s+/)) {
+    if (tok === '|') continue;
+    const m = /^([^:]+)(?::([\d.]+))?$/.exec(tok), len = m[2] ? +m[2] : 1;
+    if (m[1] !== 'R') for (const nm of m[1].split('+')) out.push({ midi: parseNote(nm), t: t * beat, d: Math.max(0.08, len * beat * 0.9), vel: 0.8, hand, finger: 0 });
+    t += len;
+  }
+  return { notes: out, len: t * beat };
+}
+const TUNES = {
+  buns: { name: 'Hot Cross Buns', bpm: 96, fin: 1, r: 'E4 D4 C4:2 | E4 D4 C4:2 | C4:.5 C4:.5 C4:.5 C4:.5 D4:.5 D4:.5 D4:.5 D4:.5 | E4 D4 C4:2' },
+  snail: { name: 'Snail Walk', bpm: 88, fin: 1, r: 'C4 D4 E4 D4 | C4 D4 E4:2 | E4 D4 C4 D4 | E4 D4 C4:2' },
+  stairs: { name: 'Up and Down the Stairs', bpm: 92, fin: 1, r: 'C4 D4 E4 F4 | G4:2 G4:2 | G4 F4 E4 D4 | C4:2 C4:2' },
+  mary: { name: 'Mary Had a Little Lamb', bpm: 104, fin: 1, r: 'E4 D4 C4 D4 | E4 E4 E4:2 | D4 D4 D4:2 | E4 G4 G4:2 | E4 D4 C4 D4 | E4 E4 E4 E4 | D4 D4 E4 D4 | C4:4' },
+  ode: { name: 'Ode to Joy', bpm: 108, fin: 1, r: 'E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:.5 D4:2 | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:.5 C4:2' },
+  jingle: { name: 'Jingle Bells', bpm: 120, fin: 1, r: 'E4 E4 E4:2 | E4 E4 E4:2 | E4 G4 C4:1.5 D4:.5 | E4:4 | F4 F4 F4:1.5 F4:.5 | F4 E4 E4 E4:.5 E4:.5 | E4 D4 D4 E4 | D4:2 G4:2 | E4 E4 E4:2 | E4 E4 E4:2 | E4 G4 C4:1.5 D4:.5 | E4:4 | F4 F4 F4:1.5 F4:.5 | F4 E4 E4 E4:.5 E4:.5 | G4 G4 F4 D4 | C4:4' },
+  twinkle: { name: 'Twinkle, Twinkle, Little Star', bpm: 100, r: 'C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2' },
+  macdonald: { name: 'Old MacDonald', bpm: 112, r: 'F4 F4 F4 C4 | D4 D4 C4:2 | A4 A4 G4 G4 | F4:3 C4 | F4 F4 F4 C4 | D4 D4 C4:2 | A4 A4 G4 G4 | F4:4' },
+  london: { name: 'London Bridge', bpm: 112, r: 'G4:1.5 A4:.5 G4 F4 | E4 F4 G4:2 | D4 E4 F4:2 | E4 F4 G4:2 | G4:1.5 A4:.5 G4 F4 | E4 F4 G4:2 | D4:2 G4:2 | E4 C4:3' },
+  row: { name: 'Row, Row, Row Your Boat', bpm: 160, meter: 6, r: 'C4:3 C4:3 | C4:2 D4 E4:3 | E4:2 D4 E4:2 F4 | G4:6 | C5 C5 C5 G4 G4 G4 | E4 E4 E4 C4 C4 C4 | G4:2 F4 E4:2 D4 | C4:6' },
+  birthday: { name: 'Happy Birthday', bpm: 100, meter: 3, pickup: 1, r: 'G3:.75 G3:.25 | A3 G3 C4 | B3:2 G3:.75 G3:.25 | A3 G3 D4 | C4:2 G3:.75 G3:.25 | G4 E4 C4 | B3 A3 F4:.75 F4:.25 | E4 C4 D4 | C4:3' },
+  frere: { name: 'Frère Jacques', bpm: 112, r: 'C4 D4 E4 C4 | C4 D4 E4 C4 | E4 F4 G4:2 | E4 F4 G4:2 | G4:.5 A4:.5 G4:.5 F4:.5 E4 C4 | G4:.5 A4:.5 G4:.5 F4:.5 E4 C4 | C4 G3 C4:2 | C4 G3 C4:2' },
+  ladder: { name: 'Left Hand Ladder', bpm: 88, fin: 1, l: 'C3 D3 E3 F3 | G3:2 G3:2 | G3 F3 E3 D3 | C3:2 C3:2' },
+  bunsL: { name: 'Hot Cross Buns, left hand', bpm: 96, fin: 1, l: 'E3 D3 C3:2 | E3 D3 C3:2 | C3:.5 C3:.5 C3:.5 C3:.5 D3:.5 D3:.5 D3:.5 D3:.5 | E3 D3 C3:2' },
+  pingpong: { name: 'Ping Pong', bpm: 96, fin: 1, r: 'C4 R C4 R | E4 R E4 R | G4 R G4 R | C4:2 R:2', l: 'R C3 R C3 | R E3 R E3 | R G3 R G3 | R:2 C3:2' },
+  ode2: { name: 'Ode to Joy', bpm: 104, fin: 1, r: 'E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:.5 D4:2 | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:.5 C4:2', l: 'C3:4 | G3:4 | C3:4 | G3:4 | C3:4 | G3:4 | C3:4 | G3:2 C3:2' },
+  jingle2: { name: 'Jingle Bells', bpm: 116, fin: 1, r: 'E4 E4 E4:2 | E4 E4 E4:2 | E4 G4 C4:1.5 D4:.5 | E4:4 | F4 F4 F4:1.5 F4:.5 | F4 E4 E4 E4:.5 E4:.5 | E4 D4 D4 E4 | D4:2 G4:2 | E4 E4 E4:2 | E4 E4 E4:2 | E4 G4 C4:1.5 D4:.5 | E4:4 | F4 F4 F4:1.5 F4:.5 | F4 E4 E4 E4:.5 E4:.5 | G4 G4 F4 D4 | C4:4', l: 'C3:4 | C3:4 | C3:4 | C3:4 | F3:4 | C3:4 | G3:4 | G3:4 | C3:4 | C3:4 | C3:4 | C3:4 | F3:4 | C3:4 | G3:4 | C3:4' },
+  twinkle2: { name: 'Twinkle, Twinkle, Little Star', bpm: 96, r: 'C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | G4 G4 F4 F4 | E4 E4 D4:2 | C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2', l: 'C3:4 | F3:2 C3:2 | F3:2 C3:2 | G3:2 C3:2 | C3:2 F3:2 | C3:2 G3:2 | C3:2 F3:2 | C3:2 G3:2 | C3:4 | F3:2 C3:2 | F3:2 C3:2 | G3:2 C3:2' },
+  elise: { name: 'Für Elise (opening)', bpm: 230, meter: 6, pickup: 2, r: 'E5 D#5 | E5 D#5 E5 B4 D5 C5 | A4:2 R C4 E4 A4 | B4:2 R E4 G#4 B4 | C5:2 R E4 E5 D#5 | E5 D#5 E5 B4 D5 C5 | A4:2 R C4 E4 A4 | B4:2 R E4 C5 B4 | A4:4', l: 'R:2 | R:6 | A2 E3 A3 R:3 | E2 E3 G#3 R:3 | A2 E3 A3 R:3 | R:6 | A2 E3 A3 R:3 | E2 E3 G#3 R:3 | A2 E3 A3:2' }
+};
+function makeSong(key) {
+  const d = TUNES[key];
+  const R = d.r ? tune(d.r, d.bpm, 'R') : { notes: [], len: 0 }, L = d.l ? tune(d.l, d.bpm, 'L') : { notes: [], len: 0 };
+  if (d.fin) { // five-finger position: thumb on C for the right hand, pinky on C for the left
+    for (const n of R.notes) { const s = whiteIndex(n.midi) - whiteIndex(60); if (s >= 0 && s <= 4 && !isBlack(n.midi)) n.finger = s + 1; }
+    for (const n of L.notes) { const s = whiteIndex(n.midi) - whiteIndex(48); if (s >= 0 && s <= 4 && !isBlack(n.midi)) n.finger = 5 - s; }
+  }
+  const notes = R.notes.concat(L.notes).sort((a, b) => a.t - b.t || a.midi - b.midi);
+  const dur = Math.max(R.len, L.len), beat = 60 / d.bpm, meter = d.meter || 4, pk = d.pickup || 0, beats = [];
+  for (let i = 0; i * beat < dur + 0.01; i++) beats.push({ t: i * beat, bar: (((i - pk) % meter) + meter) % meter === 0 });
+  return { id: 'b:' + key, name: d.name, notes, parts: [], beats, duration: dur, builtin: true };
+}
+const LIBRARY = [
+  ['twinkle', 'Easy', 'right hand'], ['mary', 'Easy', 'right hand'], ['macdonald', 'Easy', 'right hand'], ['london', 'Easy', 'right hand'],
+  ['row', 'Easy', 'right hand'], ['frere', 'Easy', 'right hand'], ['birthday', 'Easy', 'right hand'],
+  ['ode2', 'Medium', 'two hands'], ['jingle2', 'Medium', 'two hands'], ['twinkle2', 'Medium', 'two hands'], ['elise', 'Harder', 'two hands']
+];
+
+/* ========== the kids' course ========== */
+const P = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const one = (...ls) => ls.map(l => ({ k: 'pc', pc: P[l] }));
+const WORLDS = [
+  { name: 'Wake Up, Plonk!', color: '#8be04e', levels: [
+    { id: 'w1a', type: 'free', title: 'Tickle the teeth', range: [60, 72], goal: 12, say: "Hi! I'm Plonk! My teeth are piano keys. Tickle my teeth to wake me up!" },
+    { id: 'w1b', type: 'highlow', title: 'Birds and bears', rounds: 6, say: 'High sounds tweet like birds. Low sounds growl like bears. Listen! Is it a bird, or a bear?' },
+    { id: 'w1c', type: 'find', title: 'The twins', range: [60, 76], tasks: [{ k: 'g2', all: 1 }], say: 'Look at my black teeth. Some sit in twos. They are the twins! Tap the twins.' },
+    { id: 'w1d', type: 'find', title: 'The triplets', range: [53, 71], tasks: [{ k: 'g3', all: 1 }], say: 'Now find three black teeth sitting together. They are the triplets!' },
+    { id: 'w1e', type: 'find', title: 'Twins or triplets?', range: [60, 83], tasks: [{ k: 'g3' }, { k: 'g2' }, { k: 'g2' }, { k: 'g3' }, { k: 'g2' }, { k: 'g3' }], say: 'Twins or triplets? Tap the ones I ask for!' },
+    { id: 'w1f', type: 'echo', title: 'Copycat', range: [60, 72], seqs: [[60], [72], [60, 72], [72, 60], [60, 60, 72]], say: 'Copy me! Watch my teeth light up. Then you do it.' }
+  ] },
+  { name: 'Cookie, Donut, Egg', color: '#ffc83d', levels: [
+    { id: 'w2a', type: 'find', title: 'C is for cookie', range: [60, 76], tasks: [{ k: 'pc', pc: 0, all: 1 }, ...one('C', 'C', 'C')], say: 'C is for cookie! The cookie sits just left of the twins. Find every C.' },
+    { id: 'w2b', type: 'find', title: 'D is for donut', range: [60, 76], tasks: [{ k: 'pc', pc: 2, all: 1 }, ...one('D', 'C', 'D')], say: 'D is for donut! The donut hides right between the twins. Find every D.' },
+    { id: 'w2c', type: 'find', title: 'E is for egg', range: [60, 76], tasks: [{ k: 'pc', pc: 4, all: 1 }, ...one('E', 'D', 'E')], say: 'E is for egg! The egg sits just right of the twins. Find every E.' },
+    { id: 'w2d', type: 'find', title: 'Snack mix', range: [60, 76], tasks: one('C', 'E', 'D', 'C', 'D', 'E', 'C', 'E'), say: 'Now I call the snack, and you find it. Ready?' },
+    { id: 'w2e', type: 'finger', title: 'Finger numbers', hand: 'R', rounds: 6, say: 'Your fingers have numbers! The thumb is number one. Tap the finger I say.' },
+    { id: 'w2f', type: 'song', title: 'Hot Cross Buns', tune: 'buns', say: 'Feed me the falling snacks! Press the tooth when a snack lands on it. I will wait for you.' },
+    { id: 'w2g', type: 'echo', title: 'Copycat snacks', range: [60, 67], seqs: [[60, 62, 64], [64, 62, 60], [60, 64, 62], [62, 60, 64, 62]], say: 'Copycat time! Watch, listen, then play it back.' },
+    { id: 'w2h', type: 'song', title: 'Snail Walk', tune: 'snail', say: 'A slow snail song. Thumb on C. Feed me slowly!' }
+  ] },
+  { name: 'Fries and Grapes', color: '#27cdbd', levels: [
+    { id: 'w3a', type: 'find', title: 'F is for fries', range: [53, 71], tasks: [{ k: 'pc', pc: 5, all: 1 }, ...one('F', 'F', 'F')], say: 'F is for fries! The fries sit just left of the triplets. Find every F.' },
+    { id: 'w3b', type: 'find', title: 'G is for grapes', range: [53, 71], tasks: [{ k: 'pc', pc: 7, all: 1 }, ...one('G', 'F', 'G')], say: 'G is for grapes! The grapes come right after the fries. Find every G.' },
+    { id: 'w3c', type: 'find', title: 'Five snacks', range: [60, 79], tasks: one('C', 'G', 'E', 'F', 'D', 'G', 'F', 'C'), say: 'Five snacks now! C, D, E, F, and G. Find the one I call.' },
+    { id: 'w3d', type: 'song', title: 'Up and Down the Stairs', tune: 'stairs', say: 'Climb up the stairs, then come back down. One finger for each tooth!' },
+    { id: 'w3e', type: 'song', title: 'Mary Had a Little Lamb', tune: 'mary', say: 'I know this one! Mary had a little lamb. Feed me the song!' },
+    { id: 'w3f', type: 'echo', title: 'Copycat five', range: [60, 67], seqs: [[60, 64, 67], [67, 65, 64], [60, 62, 64, 65], [67, 64, 60, 64]], say: 'Copycat with five snacks. Watch closely!' },
+    { id: 'w3g', type: 'song', title: 'Ode to Joy', tune: 'ode', say: 'A very famous song. It is called Ode to Joy. Yum!' },
+    { id: 'w3h', type: 'song', title: 'Jingle Bells', tune: 'jingle', say: 'Jingle bells! This one is a big meal. You can do it!' }
+  ] },
+  { name: 'Apple, Banana, Everything', color: '#ff5c68', levels: [
+    { id: 'w4a', type: 'find', title: 'A is for apple', range: [53, 71], tasks: [{ k: 'pc', pc: 9, all: 1 }, ...one('A', 'G', 'A')], say: 'A is for apple! The apple comes right after the grapes. Find every A.' },
+    { id: 'w4b', type: 'find', title: 'B is for banana', range: [53, 71], tasks: [{ k: 'pc', pc: 11, all: 1 }, ...one('B', 'A', 'B')], say: 'B is for banana! The banana sits just right of the triplets. Find every B.' },
+    { id: 'w4c', type: 'find', title: 'The whole menu', range: [60, 83], tasks: one('C', 'A', 'F', 'B', 'D', 'G', 'E', 'A', 'B', 'C'), say: 'Seven snacks. A, B, C, D, E, F, G. That is the whole menu! Find the one I call.' },
+    { id: 'w4d', type: 'song', title: 'Twinkle, Twinkle', tune: 'twinkle', say: 'Twinkle, twinkle, little star. Stretch your pinky up to the apple!' },
+    { id: 'w4e', type: 'song', title: 'Old MacDonald', tune: 'macdonald', say: 'Old MacDonald had a farm. And on that farm he had a Plonk!' },
+    { id: 'w4f', type: 'song', title: 'London Bridge', tune: 'london', say: 'London Bridge is falling down. Catch it with your fingers!' },
+    { id: 'w4g', type: 'song', title: 'Row Your Boat', tune: 'row', say: 'Row, row, row your boat. All the way up to the high C!' },
+    { id: 'w4h', type: 'song', title: 'Happy Birthday', tune: 'birthday', say: 'Now you can play Happy Birthday for somebody you love!' }
+  ] },
+  { name: 'Two Hands!', color: '#bd83ff', levels: [
+    { id: 'w5a', type: 'finger', title: 'Left hand fingers', hand: 'L', rounds: 6, say: 'Your left hand has numbers too. The thumb is still number one!' },
+    { id: 'w5b', type: 'song', title: 'Left Hand Ladder', tune: 'ladder', say: 'Left hand now, down on the low teeth. Pinky starts on C.' },
+    { id: 'w5c', type: 'song', title: 'Left Hand Buns', tune: 'bunsL', say: 'Hot cross buns again, but with your left hand!' },
+    { id: 'w5d', type: 'song', title: 'Ping Pong', tune: 'pingpong', say: 'Ping pong! Right hand, left hand, right hand, left hand.' },
+    { id: 'w5e', type: 'song', title: 'Ode to Joy, two hands', tune: 'ode2', say: 'Two hands together. The left hand holds one long, slow snack.' },
+    { id: 'w5f', type: 'song', title: 'Jingle Bells, two hands', tune: 'jingle2', say: 'The big finish! Jingle bells with two hands. You are a piano monster now!' }
+  ] }
+];
+const STICKERS = ['🐸', '🐦', '👯', '🎩', '🦖', '🦜', '🍪', '🍩', '🥚', '🥨', '🖐', '🥐', '🐒', '🐌', '🍟', '🍇', '🧃', '🪜', '🐑', '🦊', '🎺', '🔔', '🍎', '🍌', '🍱', '⭐', '🚜', '🌉', '🚣', '🎂', '🧤', '🦎', '🧁', '🏓', '🎻', '🏆'];
+const YUMS = ['Yum!', 'Nom nom!', 'Crunchy!', 'More!', 'Tasty!', 'Mmm!', 'Chomp!'];
+const TYPE_ICON = { free: '🎉', highlow: '🐦', find: '🔎', echo: '🦜', finger: '🖐', song: '🎵' };
+const ALL_LEVELS = WORLDS.flatMap(w => w.levels);
+
+/* ========== the stage: falling notes, Plonk's eyes, and the keys ========== */
+function rr(g, x, y, w, h, tl, tr = tl, br = tl, bl = tl) {
+  const m = Math.min(w, h) / 2; tl = Math.min(tl, m); tr = Math.min(tr, m); br = Math.min(br, m); bl = Math.min(bl, m);
+  g.beginPath(); g.moveTo(x + tl, y); g.lineTo(x + w - tr, y); g.arcTo(x + w, y, x + w, y + tr, tr); g.lineTo(x + w, y + h - br); g.arcTo(x + w, y + h, x + w - br, y + h, br);
+  g.lineTo(x + bl, y + h); g.arcTo(x, y + h, x, y + h - bl, bl); g.lineTo(x, y + tl); g.arcTo(x, y, x + tl, y, tl); g.closePath();
+}
+const FONT = 'Grandstander, "Trebuchet MS", "Arial Rounded MT Bold", sans-serif';
+class Stage {
+  constructor(canvas, o = {}) {
+    this.c = canvas; this.g = canvas.getContext('2d'); this.roll = o.roll !== false;
+    this.w = 0; this.h = 0; this.dpr = 1; this.ptr = new Map(); this.lastNow = 0;
+    this.onNoteOn = this.onNoteOff = this.onScrub = this.onTap = null;
+    this.reset(); this.setRange(60, 72);
+    const pos = e => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    canvas.addEventListener('pointerdown', e => {
+      const { x, y } = pos(e); e.preventDefault();
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) { }
+      const m = this.interactive ? this.keyAt(x, y) : null;
+      if (m != null) { this.ptr.set(e.pointerId, { m }); this.onNoteOn && this.onNoteOn(m); }
+      else if (this.roll && y < this.rollH) this.ptr.set(e.pointerId, { scrub: true, y, moved: 0 });
+    });
+    canvas.addEventListener('pointermove', e => {
+      const p = this.ptr.get(e.pointerId); if (!p) return; const { x, y } = pos(e);
+      if (p.scrub) { const dy = y - p.y; p.y = y; p.moved += Math.abs(dy); if (p.moved > 6 && this.onScrub) this.onScrub(dy / this.pps); }
+      else { const m = this.keyAt(x, y); if (m !== p.m) { if (p.m != null && this.onNoteOff) this.onNoteOff(p.m); p.m = m; if (m != null && this.onNoteOn) this.onNoteOn(m); } }
+    });
+    const up = e => {
+      const p = this.ptr.get(e.pointerId); if (!p) return; this.ptr.delete(e.pointerId);
+      if (p.scrub) { if (p.moved <= 6 && this.onTap) this.onTap(); } else if (p.m != null && this.onNoteOff) this.onNoteOff(p.m);
+    };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+    canvas.addEventListener('wheel', e => { if (this.roll && this.onScrub) { e.preventDefault(); this.onScrub(e.deltaY / this.pps * 0.6); } }, { passive: false });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    if (window.ResizeObserver) new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
+    window.addEventListener('resize', () => this.resize());
+  }
+  reset() {
+    this.notes = []; this.maxDur = 1; this.time = 0; this.lookahead = 3.2; this.beats = null; this.progress = -1; this.loop = null; this.paused = false; this.duration = 0;
+    this.pressed = new Map(); this.targets = new Map(); this.lit = new Map(); this.flash = new Map(); this.sparks = []; this.words = [];
+    this.mood = ''; this.moodT = 0; this.lookAt = null; this.lookDown = false; this.interactive = true; this.snacks = false; this.hints = null;
+    this.labels = S.settings.labels; this.colors = S.settings.colors;
+  }
+  setRange(lo, hi) {
+    while (isBlack(lo)) lo--; while (isBlack(hi)) hi++;
+    this.lo = lo; this.hi = hi; this.whites = []; this.wi = new Map();
+    for (let m = lo; m <= hi; m++) if (!isBlack(m)) { this.wi.set(m, this.whites.length); this.whites.push(m); }
+    this.layout();
+  }
+  fit(lo, hi, minWhites = 8) {
+    lo = clamp(lo, 21, 108); hi = clamp(hi, 21, 108);
+    while (pc(lo) !== 0 && pc(lo) !== 5) lo--; while (pc(hi) !== 4 && pc(hi) !== 11) hi++;
+    const count = () => whiteIndex(hi) - whiteIndex(lo) + 1;
+    while (count() < minWhites) { if (hi < 96) { hi++; while (pc(hi) !== 4 && pc(hi) !== 11) hi++; } else { lo--; while (pc(lo) !== 0 && pc(lo) !== 5) lo--; } }
+    this.setRange(lo, hi);
+  }
+  resize() {
+    const r = this.c.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
+    this.dpr = Math.min(2.5, window.devicePixelRatio || 1); this.w = r.width; this.h = r.height;
+    this.c.width = Math.round(r.width * this.dpr); this.c.height = Math.round(r.height * this.dpr); this.layout();
+  }
+  layout() {
+    if (!this.w) return; this.ww = this.w / this.whites.length;
+    this.strip = clamp(this.h * 0.09, 26, 54);
+    if (this.roll) this.kb = Math.min(clamp(Math.min(this.h * 0.34, this.ww * 4.8), 76, 230), this.h * 0.5);
+    else this.kb = this.h - this.strip * 1.6;
+    this.rollH = this.h - this.kb - this.strip; this.pps = Math.max(1, this.rollH / this.lookahead);
+  }
+  keyX(m) {
+    if (m < this.lo || m > this.hi) return null;
+    if (!isBlack(m)) return { x: this.wi.get(m) * this.ww, w: this.ww, black: false };
+    const i = this.wi.get(m + 1); if (i == null) return null; const bw = this.ww * 0.6; return { x: i * this.ww - bw / 2, w: bw, black: true };
+  }
+  keyAt(x, y) {
+    const top = this.rollH + this.strip; if (y < top || x < 0 || x >= this.w) return null;
+    if (y < top + this.kb * 0.62) for (let m = this.lo; m <= this.hi; m++) if (isBlack(m)) { const k = this.keyX(m); if (k && x >= k.x - 2 && x <= k.x + k.w + 2) return m; }
+    return this.whites[clamp(Math.floor(x / this.ww), 0, this.whites.length - 1)];
+  }
+  keyCenter(m) { const k = this.keyX(m); return k ? k.x + k.w / 2 : m < this.lo ? 0 : this.w; }
+  noteColor(n) { return this.colors === 'hands' ? (n.hand === 'R' ? COL.right : n.hand === 'L' ? COL.left : COL.bg) : pcColor(n.midi); }
+  label(m) { return this.labels === 'solfege' ? SOLF[pc(m)] : NAMES[pc(m)]; }
+  burst(m, color) {
+    const x = this.keyCenter(m), y = this.rollH + this.strip;
+    for (let i = 0; i < 9; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9, v = 120 + Math.random() * 200; this.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6, r: 3 + Math.random() * 4, color: color || pcColor(m) }); }
+    if (this.sparks.length > 160) this.sparks.splice(0, this.sparks.length - 160);
+  }
+  word(text, m) { this.words.push({ text, x: clamp(this.keyCenter(m), 50, this.w - 50), y: this.rollH - 14, life: 1 }); if (this.words.length > 4) this.words.shift(); }
+  happy() { this.mood = 'happy'; this.moodT = this.lastNow + 0.35; }
+  yuck(m) { this.mood = 'yuck'; this.moodT = this.lastNow + 0.45; if (m != null) this.flash.set(m, this.lastNow + 0.3); }
+  draw(now) {
+    const g = this.g; if (!this.w) { this.resize(); if (!this.w) return; }
+    const dt = Math.min(0.05, now - this.lastNow); this.lastNow = now;
+    const W = this.w, H = this.h, ww = this.ww, rollH = this.rollH, top = rollH + this.strip, kb = this.kb;
+    const pps = this.pps = Math.max(1, rollH / this.lookahead), time = this.time;
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); g.clearRect(0, 0, W, H); g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (this.roll) {
+      g.fillStyle = COL.pond; g.fillRect(0, 0, W, rollH);
+      g.fillStyle = 'rgba(0,0,0,.17)';
+      for (let m = this.lo; m <= this.hi; m++) if (isBlack(m)) { const k = this.keyX(m); if (k) g.fillRect(k.x, 0, k.w, rollH); }
+      g.fillStyle = 'rgba(255,255,255,.11)';
+      for (let i = 1; i < this.whites.length; i++) if (pc(this.whites[i]) === 0) g.fillRect(i * ww - 0.5, 0, 1, rollH);
+      if (this.beats && this.beats.length) {
+        for (let i = lowerBound(this.beats, time); i < this.beats.length && this.beats[i].t < time + this.lookahead; i++) {
+          const b = this.beats[i]; g.fillStyle = b.bar ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.07)'; g.fillRect(0, Math.round(rollH - (b.t - time) * pps), W, 1);
+        }
+      }
+      g.save(); g.beginPath(); g.rect(0, 0, W, rollH); g.clip();
+      const ns = this.notes, t1 = time + this.lookahead;
+      for (let i = lowerBound(ns, time - this.maxDur - 0.1); i < ns.length && ns[i].t < t1; i++) {
+        const n = ns[i]; if (n.role === 'off' || n.t + n.d < time - 0.05) continue;
+        const k = this.keyX(n.midi); if (!k) continue;
+        const yb = rollH - (n.t - time) * pps, hgt = Math.max(n.d * pps, 12), yt = yb - hgt;
+        const pad = k.black ? 0 : Math.max(1.5, k.w * 0.09), x = k.x + pad, w = k.w - 2 * pad, rad = Math.min(10, w / 2);
+        const play = n.role === 'play';
+        g.globalAlpha = n.miss ? 0.35 : play ? (n.hit ? 0.5 : 1) : 0.34;
+        g.fillStyle = n.miss ? '#7d8f93' : this.noteColor(n); rr(g, x, yt, w, hgt, rad); g.fill();
+        if (play) {
+          g.lineWidth = 2; g.strokeStyle = 'rgba(6,32,42,.75)'; g.stroke();
+          g.fillStyle = 'rgba(255,255,255,.3)'; rr(g, x + w * 0.16, yt + 4, Math.max(2, w * 0.14), Math.min(hgt - 8, 16), 2); g.fill();
+          if (w >= 15 && !n.hit) {
+            const fs = clamp(w * (this.labels === 'solfege' ? 0.34 : 0.46), 9, 20); let ly = yb - fs * 0.85;
+            if (this.snacks && w >= 26 && hgt >= fs * 2.6 && SNACK[pc(n.midi)]) { const es = Math.min(w * 0.62, 30); g.font = es + 'px ' + FONT; g.fillText(SNACK[pc(n.midi)], x + w / 2, yb - es * 0.62); ly = yb - es * 1.2 - fs * 0.55; }
+            if (this.labels !== 'off' && hgt >= fs * 1.5) { g.font = '800 ' + fs + 'px ' + FONT; g.fillStyle = COL.ink; g.fillText(this.label(n.midi), x + w / 2, ly); }
+            if (n.finger && w >= 20) {
+              const fr = clamp(w * 0.24, 8, 13), fy = yt - fr - 3; g.globalAlpha = 1;
+              g.beginPath(); g.arc(x + w / 2, fy, fr, 0, 7); g.fillStyle = COL.paper; g.fill(); g.lineWidth = 2; g.strokeStyle = COL.ink; g.stroke();
+              g.font = '800 ' + fr * 1.3 + 'px ' + FONT; g.fillStyle = COL.ink; g.fillText(n.finger, x + w / 2, fy + 1);
+            }
+          }
+        }
+      }
+      g.globalAlpha = 1; g.restore();
+      if (this.progress >= 0) {
+        g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(0, 0, W, 5);
+        if (this.loop && this.duration) { g.fillStyle = 'rgba(255,93,143,.75)'; const a = this.loop.a / this.duration * W, b = (this.loop.b == null ? this.loop.a : this.loop.b) / this.duration * W; g.fillRect(a, 0, Math.max(3, b - a), 5); }
+        g.fillStyle = COL.sun; g.fillRect(0, 0, W * this.progress, 5);
+      }
+      if (this.paused) {
+        const cx = W / 2, cy = rollH * 0.45, R = Math.min(46, rollH * 0.2);
+        g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fillStyle = 'rgba(6,32,42,.72)'; g.fill(); g.lineWidth = 3; g.strokeStyle = COL.paper; g.stroke();
+        g.beginPath(); g.moveTo(cx - R * 0.28, cy - R * 0.42); g.lineTo(cx + R * 0.46, cy); g.lineTo(cx - R * 0.28, cy + R * 0.42); g.closePath(); g.fillStyle = COL.paper; g.fill();
+      }
+    }
+    /* Plonk: a lime band with frog eyes; the keys below are the teeth */
+    const sh = this.strip;
+    g.fillStyle = COL.plonk; g.fillRect(0, rollH, W, sh + 2); g.fillStyle = COL.ink; g.fillRect(0, rollH - 1.5, W, 3);
+    g.fillStyle = COL.plonkD; g.fillRect(0, top - 5, W, 5);
+    const er = sh * 0.5, ey = rollH + sh * 0.3, cx = W / 2, lookX = this.lookAt != null ? this.keyCenter(this.lookAt) : cx;
+    const mood = now < this.moodT ? this.mood : '', blink = !mood && (now % 4.3) < 0.13;
+    for (const s of [-1, 1]) {
+      const ex = cx + s * er * 1.3, R = er + 5, a = Math.asin(clamp((ey - rollH) / R, -1, 1));
+      g.beginPath(); g.arc(ex, ey, R, 0, 7); g.fillStyle = COL.plonk; g.fill();
+      g.beginPath(); g.arc(ex, ey, R, Math.PI + a, 2 * Math.PI - a); g.lineWidth = 3; g.strokeStyle = COL.ink; g.stroke();
+      if (blink) { g.beginPath(); g.moveTo(ex - er * 0.7, ey); g.lineTo(ex + er * 0.7, ey); g.lineWidth = 3; g.strokeStyle = COL.ink; g.stroke(); continue; }
+      g.beginPath(); g.arc(ex, ey, er, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = COL.ink; g.stroke();
+      g.lineWidth = Math.max(3, er * 0.2); g.lineCap = 'round';
+      if (mood === 'happy') { g.beginPath(); g.arc(ex, ey + er * 0.25, er * 0.5, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
+      else if (mood === 'yuck') { g.beginPath(); g.moveTo(ex - s * er * 0.45, ey - er * 0.4); g.lineTo(ex + s * er * 0.3, ey); g.lineTo(ex - s * er * 0.45, ey + er * 0.4); g.stroke(); }
+      else {
+        const px = ex + clamp((lookX - ex) / (W * 0.45), -1, 1) * er * 0.42, py = ey + (this.lookDown ? er * 0.3 : -er * 0.12);
+        g.beginPath(); g.arc(px, py, er * 0.45, 0, 7); g.fillStyle = COL.ink; g.fill();
+        g.beginPath(); g.arc(px + er * 0.14, py - er * 0.16, er * 0.13, 0, 7); g.fillStyle = '#fff'; g.fill();
+      }
+      g.lineCap = 'butt';
+    }
+    /* white keys */
+    const pulse = 0.5 + 0.5 * Math.sin(now * 7), rad = Math.min(9, ww * 0.22);
+    const dense = ww < 20, showLab = this.labels !== 'off' && ww >= 12;
+    for (let i = 0; i < this.whites.length; i++) {
+      const m = this.whites[i], x = i * ww, pr = this.pressed.get(m), tg = this.targets.get(m), lt = this.lit.get(m), fl = this.flash.get(m);
+      rr(g, x + 1, top, ww - 2, kb - 2, 0, 0, rad, rad); g.fillStyle = '#fffdf4'; g.fill();
+      if (lt) { g.globalAlpha = 0.75; g.fillStyle = lt; g.fill(); g.globalAlpha = 1; }
+      if (tg) { g.globalAlpha = tg.strong ? 0.5 + 0.4 * pulse : 0.3; g.fillStyle = tg.color; g.fill(); g.globalAlpha = 1; }
+      if (pr) { g.fillStyle = pr; g.fill(); }
+      if (fl && now < fl) { g.fillStyle = COL.berry; g.fill(); }
+      g.lineWidth = 2; g.strokeStyle = COL.ink; g.stroke();
+      if (!pr) { g.fillStyle = 'rgba(6,32,42,.12)'; rr(g, x + 2, top + kb - 11, ww - 4, 8, 0, 0, rad, rad); g.fill(); }
+      const fs = clamp(ww * (this.labels === 'solfege' ? 0.3 : 0.42), 8, 22), ly = top + kb - 13 - fs * 0.5;
+      if (showLab && (!dense || pc(m) === 0)) { g.font = '800 ' + fs + 'px ' + FONT; g.fillStyle = 'rgba(6,32,42,.8)'; g.fillText(this.label(m), x + ww / 2, ly); }
+      if (tg && tg.finger && ww >= 22) {
+        const fr = clamp(ww * 0.22, 8, 14), fy = ly - fs * 0.5 - fr - 4;
+        g.beginPath(); g.arc(x + ww / 2, fy, fr, 0, 7); g.fillStyle = COL.ink; g.fill(); g.font = '800 ' + fr * 1.3 + 'px ' + FONT; g.fillStyle = COL.paper; g.fillText(tg.finger, x + ww / 2, fy + 1);
+      } else if (this.hints && this.hints.has(m) && ww >= 20) { g.font = '700 ' + clamp(ww * 0.26, 9, 13) + 'px ' + FONT; g.fillStyle = 'rgba(6,32,42,.45)'; g.fillText(this.hints.get(m), x + ww / 2, top + kb * 0.74); }
+    }
+    /* black keys */
+    const bh = kb * 0.62;
+    for (let m = this.lo; m <= this.hi; m++) {
+      if (!isBlack(m)) continue; const k = this.keyX(m); if (!k) continue;
+      const pr = this.pressed.get(m), tg = this.targets.get(m), lt = this.lit.get(m), fl = this.flash.get(m);
+      rr(g, k.x, top - 1, k.w, bh, 0, 0, 5, 5); g.fillStyle = COL.ink; g.fill();
+      if (lt) { g.globalAlpha = 0.85; g.fillStyle = lt; g.fill(); g.globalAlpha = 1; }
+      if (tg) { g.globalAlpha = tg.strong ? 0.55 + 0.45 * pulse : 0.4; g.fillStyle = tg.color; g.fill(); g.globalAlpha = 1; }
+      if (pr) { g.fillStyle = pr; g.fill(); }
+      if (fl && now < fl) { g.fillStyle = COL.berry; g.fill(); }
+      g.lineWidth = 2; g.strokeStyle = COL.ink; g.stroke();
+      if (!pr && !tg && !lt) { g.fillStyle = 'rgba(255,255,255,.16)'; rr(g, k.x + k.w * 0.22, top + bh - 10, k.w * 0.56, 4, 2); g.fill(); }
+      if (this.hints && this.hints.has(m) && k.w >= 14) { g.font = '700 ' + clamp(k.w * 0.5, 8, 12) + 'px ' + FONT; g.fillStyle = 'rgba(242,251,240,.6)'; g.fillText(this.hints.get(m), k.x + k.w / 2, top + bh * 0.7); }
+    }
+    /* crumbs and words */
+    for (let i = this.sparks.length - 1; i >= 0; i--) {
+      const s = this.sparks[i]; s.life -= dt; if (s.life <= 0) { this.sparks.splice(i, 1); continue; }
+      s.vy += 620 * dt; s.x += s.vx * dt; s.y += s.vy * dt;
+      g.globalAlpha = clamp(s.life / 0.35, 0, 1); g.beginPath(); g.arc(s.x, s.y, s.r, 0, 7); g.fillStyle = s.color; g.fill(); g.lineWidth = 1.5; g.strokeStyle = COL.ink; g.stroke();
+    }
+    for (let i = this.words.length - 1; i >= 0; i--) {
+      const wd = this.words[i]; wd.life -= dt; if (wd.life <= 0) { this.words.splice(i, 1); continue; }
+      wd.y -= 42 * dt; g.globalAlpha = clamp(wd.life / 0.4, 0, 1); g.font = '26px "Bagel Fat One", ' + FONT;
+      g.lineWidth = 6; g.lineJoin = 'round'; g.strokeStyle = COL.ink; g.strokeText(wd.text, wd.x, wd.y); g.fillStyle = COL.sun; g.fillText(wd.text, wd.x, wd.y);
+    }
+    g.globalAlpha = 1;
+  }
+}
+
+/* ========== the song engine: wait, rhythm and listen modes ========== */
+class Player {
+  constructor(stage, song, o = {}) {
+    this.stage = stage; this.song = song; this.mode = o.mode || 'wait'; this.speed = o.speed || 1; this.hands = o.hands || 'both';
+    this.easy = !!o.easy; this.kid = !!o.kid; this.metro = false; this.loop = null; this.playing = false; this.ended = false; this.waiting = false;
+    this.onEnd = o.onEnd || null; this.onListenEnd = null;
+    this.startT = (song.notes.length ? song.notes[0].t : 0) - (this.kid ? 2.6 : 2); this.time = this.startT;
+    let md = 0.5; for (const n of song.notes) if (n.d > md) md = n.d;
+    stage.notes = song.notes; stage.maxDur = Math.min(md, 30); stage.beats = song.beats; stage.duration = song.duration;
+    this.rebuild();
+  }
+  rebuild() {
+    const pl = [], hasR = this.song.notes.some(n => n.hand === 'R');
+    for (const n of this.song.notes) {
+      let role = 'auto';
+      if (n.hand === 'off') role = 'off';
+      else if (this.mode !== 'listen' && ((n.hand === 'R' && this.hands !== 'L') || (n.hand === 'L' && this.hands !== 'R' && !(this.easy && hasR)))) role = 'play';
+      n.role = role; n.hit = n.miss = false; if (role === 'play') pl.push(n);
+    }
+    const steps = []; let cur = null;
+    for (const n of pl) { if (cur && n.t - cur.t <= 0.045) cur.notes.push(n); else steps.push(cur = { t: n.t, notes: [n] }); }
+    if (this.easy) for (const st of steps) { let topN = st.notes[0]; for (const n of st.notes) if (n.midi > topN.midi) topN = n; for (const n of st.notes) if (n !== topN) n.role = 'auto'; st.notes = [topN]; }
+    this.steps = steps; this.play = []; for (const st of steps) for (const n of st.notes) this.play.push(n);
+    this.stats = { hits: 0, wrong: 0, miss: 0, streak: 0, best: 0 }; this.ended = false; this.sync();
+  }
+  sync() {
+    const t = this.time; this.si = 0; while (this.si < this.steps.length && this.steps[this.si].t < t - 1e-6) this.si++;
+    for (let i = this.si; i < this.steps.length; i++) { const st = this.steps[i]; st.need = new Set(st.notes); for (const n of st.notes) n.hit = n.miss = false; }
+    this.ai = lowerBound(this.song.notes, t - 1e-6); this.bi = this.song.beats ? lowerBound(this.song.beats, t - 1e-6) : 0; this.mi = lowerBound(this.play, t - 1e-6); this.waiting = false;
+  }
+  start() { Sound.init(); this.playing = true; }
+  pause() { this.playing = false; Sound.allOff(); }
+  toggle() { if (this.ended) this.restart(); else if (this.playing) this.pause(); else this.start(); }
+  restart() { this.time = this.loop ? this.loop.a : this.startT; this.rebuild(); this.start(); }
+  seek(t) { this.time = clamp(t, this.startT, Math.max(this.startT, this.song.duration)); this.ended = false; this.sync(); }
+  scrub(d) { this.seek(this.time + d); }
+  set(k, v) { this[k] = v; if (k === 'mode' || k === 'hands' || k === 'easy') this.rebuild(); }
+  frame(dt) {
+    const st = this.stage, ns = this.song.notes;
+    if (this.playing && !this.ended) {
+      let t = this.time + dt * this.speed; const step = this.steps[this.si]; let waiting = false;
+      if (this.mode === 'wait' && step && t >= step.t) { t = step.t; waiting = true; }
+      const lim = waiting ? t - 0.002 : t;
+      while (this.ai < ns.length && ns[this.ai].t <= lim) { const n = ns[this.ai++]; if (n.role === 'auto') Sound.play(n.midi, (n.vel || 0.7) * (n.hand === 'bg' ? 0.5 : 0.8), Math.max(0.1, n.d / this.speed)); }
+      if (this.mode === 'rhythm') { const win = 0.3 * this.speed; while (this.mi < this.play.length && this.play[this.mi].t < t - win) { const n = this.play[this.mi++]; if (!n.hit) { n.miss = true; this.stats.miss++; this.stats.streak = 0; } } }
+      const b = this.song.beats; if (b) while (this.bi < b.length && b[this.bi].t <= lim) { if (this.metro) Sound.tick(b[this.bi].bar); this.bi++; }
+      this.waiting = waiting; this.time = t;
+      if (this.loop && this.loop.b != null && t >= this.loop.b) this.seek(this.loop.a);
+      else if (t >= this.song.duration + 0.7 && (this.mode !== 'wait' || this.si >= this.steps.length)) this.finish();
+    }
+    st.time = this.time; st.paused = !this.playing && !this.ended; st.progress = clamp(this.time / (this.song.duration || 1), 0, 1); st.loop = this.loop;
+    st.lit.clear();
+    if (this.playing) for (let i = lowerBound(ns, this.time - st.maxDur - 0.1); i < ns.length && ns[i].t <= this.time; i++) { const n = ns[i]; if (n.role === 'auto' && n.t + n.d > this.time && !(this.waiting && n.t >= this.time - 0.002)) st.lit.set(n.midi, st.noteColor(n)); }
+    st.targets.clear(); const nx = this.steps[this.si];
+    if (this.mode === 'wait' && nx && !this.ended) {
+      if (this.kid || this.waiting || nx.t - this.time < 1) for (const n of nx.need) st.targets.set(n.midi, { color: st.noteColor(n), finger: n.finger, strong: this.waiting });
+      st.lookAt = nx.notes[0].midi; st.lookDown = this.waiting;
+    } else { st.lookAt = null; st.lookDown = false; }
+  }
+  noteOn(m, src) {
+    if (this.ended || this.mode === 'listen' || !this.playing) return;
+    const tnow = performance.now();
+    if (src === 'mic' && this.lastQ && this.lastQ.m === m && tnow - this.lastQ.t < 450) return;  // same strike, already counted
+    const Z = this.stats, st = this.stage, mic = src === 'mic' || src === 'mic?';
+    const good = (n, word) => { n.hit = true; Z.hits++; Z.streak++; Z.best = Math.max(Z.best, Z.streak); st.burst(n.midi, st.noteColor(n)); st.happy(); if (word) st.word(word, n.midi); else if (this.kid && Z.hits % 5 === 0) st.word(pick(YUMS), n.midi); };
+    if (this.mode === 'wait') {
+      const step = this.steps[this.si]; if (!step) return; const early = step.t - this.time; let hit = null;
+      for (const n of step.need) if (n.midi === m) { hit = n; break; }
+      if (!hit && this.kid && src !== 'mic?') for (const n of step.need) if (pc(n.midi) === pc(m)) { hit = n; break; }
+      if (hit) {
+        if (early > 0.6 * this.speed + 0.01) return;
+        step.need.delete(hit); good(hit); if (src === 'mic?') this.lastQ = { m, t: tnow };
+        if (step.need.size === 0) { if (early > 0) this.time = step.t; this.si++; this.waiting = false; }
+      } else if (step.notes.some(n => n.midi === m || (this.kid && pc(n.midi) === pc(m)))) { /* already fed */ }
+      else if (!mic && (this.waiting || early < 1.5)) { Z.wrong++; Z.streak = 0; st.yuck(m); }
+    } else {
+      const win = 0.3 * this.speed; let best = null, bd = 1e9;
+      for (let i = lowerBound(this.play, this.time - win); i < this.play.length && this.play[i].t <= this.time + win; i++) { const n = this.play[i]; if (!n.hit && !n.miss && n.midi === m) { const d = Math.abs(n.t - this.time); if (d < bd) { bd = d; best = n; } } }
+      if (best) { good(best, bd < 0.09 * this.speed ? 'Perfect!' : ''); if (src === 'mic?') this.lastQ = { m, t: tnow }; } else if (!mic) { Z.wrong++; Z.streak = 0; st.yuck(m); }
+    }
+  }
+  finish() {
+    this.ended = true; this.playing = false; Sound.allOff();
+    if (this.mode === 'listen') { if (this.onListenEnd) this.onListenEnd(); return; }
+    const Z = this.stats, tot = Z.hits + Z.wrong + Z.miss, acc = tot ? Z.hits / tot : 1;
+    if (this.onEnd) this.onEnd({ acc, stars: acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : 1, hits: Z.hits, wrong: Z.wrong, miss: Z.miss, best: Z.best, mode: this.mode });
+  }
+}
+/* ========== app shell ========== */
+let soundAt = 0, soundTries = 0;
+let hero, stage, sheetTick = null, heroTaps = 0, lastT = 0, hudAt = 0;
+const App = { screen: 'home', handler: null, player: null, level: null, song: null, back: 'home', token: 0, kid: false, tickAct: null, lastSay: '' };
+const Conn = { micErr: '', midiErr: '' };
+const later = (fn, ms) => { const tk = App.token; setTimeout(() => { if (tk === App.token) fn(); }, ms); };
+const activeStage = () => App.screen === 'home' ? hero : stage;
+const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+const doneCount = () => ALL_LEVELS.filter(l => S.progress[l.id]).length;
+const totalStars = () => ALL_LEVELS.reduce((a, l) => a + (S.progress[l.id] ? S.progress[l.id].stars : 0), 0);
+
+/* every way of playing a note ends up here */
+const Input = {
+  base: null, baseFor: '', usedKeys: false,
+  on(m, src, vel = 0.8) {
+    if (m < 21 || m > 108) return;
+    const mic = src === 'mic' || src === 'mic?';
+    if (!mic && (src !== 'midi' || S.settings.midiSound)) Sound.noteOn(m, vel); else Sound.init();
+    if (src !== 'mic?') activeStage().pressed.set(m, pcColor(m));
+    if (App.handler) App.handler(m, src);
+  },
+  off(m, src) { if (src !== 'mic') Sound.noteOff(m); hero.pressed.delete(m); stage.pressed.delete(m); }
+};
+const KEYMAP = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, g: 7, y: 8, h: 9, u: 10, j: 11, k: 12, o: 13, l: 14, p: 15, ';': 16 }, held = new Map();
+function kbBase() {
+  const st = activeStage(), key = st.lo + ':' + st.hi;
+  if (Input.base == null || Input.baseFor !== key) { let b = Math.ceil(st.lo / 12) * 12; if (b + 4 > st.hi) b = Math.floor(st.lo / 12) * 12; Input.base = b; Input.baseFor = key; }
+  return Input.base;
+}
+function setHints() { const st = activeStage(), b = kbBase(), h = new Map(); for (const k in KEYMAP) h.set(b + KEYMAP[k], k.toUpperCase()); st.hints = h; }
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const tg = e.target, k = e.key.toLowerCase();
+  if (tg && /INPUT|SELECT|TEXTAREA/.test(tg.tagName)) return;
+  if (!$('#sheet').hidden) { if (k === 'escape') closeSheet(); return; }
+  if (!$('#result').hidden) return;
+  if (k in KEYMAP) { e.preventDefault(); if (e.repeat || held.has(k)) return; Input.usedKeys = true; const m = kbBase() + KEYMAP[k]; held.set(k, m); setHints(); Input.on(m, 'key'); }
+  else if (k === 'z' || k === 'x') { Input.base = clamp(kbBase() + (k === 'z' ? -12 : 12), 24, 96); if (Input.usedKeys) setHints(); }
+  else if (App.player && !App.kid && App.screen === 'play') {
+    if (k === ' ' && !(tg && tg.tagName === 'BUTTON')) { e.preventDefault(); App.player.toggle(); }
+    else if (k === 'arrowleft') App.player.scrub(-2); else if (k === 'arrowright') App.player.scrub(2);
+  }
+});
+addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (held.has(k)) { Input.off(held.get(k), 'key'); held.delete(k); } });
+
+function clearPlay() {
+  App.token++; App.player = null; App.handler = null; App.tickAct = null; Sound.allOff(); hush(); hideResult();
+  $('#panel').onclick = null; $('#panel').innerHTML = ''; if (stage) stage.reset();
+}
+function show(name) {
+  if (App.screen === 'play' && name !== 'play') clearPlay();
+  App.screen = name; for (const s of $$('.screen')) s.hidden = s.id !== name;
+  if (name === 'home') { App.handler = heroTap; $('#homeStars').textContent = totalStars(); }
+  else if (name === 'kids') { App.handler = null; renderMap(); }
+  else if (name === 'songs') { App.handler = null; renderSongs(); }
+  if (name !== 'play') { const h = name === 'home' ? '' : '#' + name; if ((location.hash || '') !== h && !(h === '' && location.hash === '#')) { try { location.hash = h; } catch (e) { } } }
+  requestAnimationFrame(() => { hero.resize(); stage.resize(); });
+}
+function route() { const r = (location.hash || '').slice(1) || 'home'; if (['home', 'kids', 'songs'].includes(r) && r !== App.screen) show(r); }
+function loop(ts) {
+  const now = ts / 1000, dt = Math.min(0.05, Math.max(0, now - lastT)); lastT = now;
+  try {
+    if (Mic.active) Mic.tick(now);
+    if (App.screen === 'home') { if (Input.usedKeys && !hero.hints) setHints(); hero.draw(now); }
+    else if (App.screen === 'play') {
+      if (App.player) App.player.frame(dt); if (App.tickAct) App.tickAct(dt, now);
+      if (Input.usedKeys && !stage.hints) setHints(); stage.draw(now); if (now - hudAt > 0.12) { hudAt = now; hud(); }
+    }
+    if (sheetTick) sheetTick(now);
+    if (now - soundAt > 0.4) { soundAt = now; const ok = Sound.state() === 'running'; if (ok) soundTries = 0; $('#soundOn').hidden = ok; }
+  } catch (e) { console.error(e); }
+  requestAnimationFrame(loop);
+}
+function heroTap(m) {
+  heroTaps++; hero.burst(m); hero.happy(); hero.lookAt = m; if (heroTaps % 4 === 0) hero.word(pick(YUMS), m);
+  if (heroTaps === 3 || heroTaps % 9 === 0) $('#heroBubble').textContent = pick(['That tickles!', 'Hee hee!', 'More!', 'Again!']);
+}
+
+/* ========== kids' map ========== */
+function unlocked(i) { return i === 0 || S.settings.unlockAll || !!S.progress[ALL_LEVELS[i - 1].id]; }
+function renderMap() {
+  let idx = 0, nextId = null;
+  for (let i = 0; i < ALL_LEVELS.length; i++) if (!S.progress[ALL_LEVELS[i].id] && unlocked(i)) { nextId = ALL_LEVELS[i].id; break; }
+  const map = $('#map');
+  map.innerHTML = WORLDS.map((w, wi) => `<section class="world" style="--wc:${w.color}"><h3><span class="wn">World ${wi + 1}</span>${esc(w.name)}</h3><div class="path">` + w.levels.map(l => {
+    const i = idx++, p = S.progress[l.id], open = unlocked(i);
+    return `<button class="lv${p ? ' done' : ''}${open ? '' : ' locked'}${l.id === nextId ? ' next' : ''}" data-lv="${l.id}"${open ? '' : ' disabled'} aria-label="${esc(l.title)}${open ? '' : ', locked'}"><span class="lv-ic">${open ? TYPE_ICON[l.type] : '🔒'}</span><span class="lv-st">${p ? starStr(p.stars) : ''}</span><span class="lv-t">${esc(l.title)}</span></button>`;
+  }).join('') + '</div></section>').join('');
+  $('#stickerCount').textContent = doneCount() + '/' + ALL_LEVELS.length;
+  const nx = $('.lv.next', map); if (nx) { const a = nx.getBoundingClientRect(), b = map.getBoundingClientRect(); map.scrollTop += a.top - b.top - b.height / 2 + a.height / 2; }
+}
+function setBubble(text, big = '') { $('#bubbleTxt').textContent = text; $('#bubbleBig').textContent = big; }
+function bubble(text, cb, big = '') { setBubble(text, big); App.lastSay = text; say(text, cb); }
+function meter(f) { $('#pMeter i').style.width = clamp(f, 0, 1) * 100 + '%'; }
+function openPlay(o) {
+  if (App.screen === 'play') clearPlay();
+  show('play'); App.token++;
+  $('#play').className = 'screen lay-' + o.layout + (o.kid ? ' kid' : ''); App.kid = !!o.kid; App.back = o.back; $('#pTitle').textContent = o.title;
+  $('#chips').hidden = !!o.kid; $('#bubble').hidden = !o.kid; $('#pMeter').hidden = !o.kid; $('#pHear').hidden = true; $('#pRestart').hidden = !o.song; $('#pPlay').hidden = !o.song || !!o.kid; $('#hud').hidden = true;
+  $('#pConn').hidden = !!o.kid; setBubble(''); stage.reset(); stage.roll = !!o.roll; meter(0); connBtn();
+  requestAnimationFrame(() => stage.resize());
+}
+function openLevel(lv) {
+  App.level = lv; const roll = lv.type === 'song';
+  openPlay({ kid: true, title: lv.title, layout: roll ? 'song' : (lv.type === 'highlow' || lv.type === 'finger') ? 'panel' : 'keys', roll, back: 'kids', song: roll });
+  ACTS[lv.type](lv);
+}
+function finishLevel(stars) {
+  const lv = App.level, i = ALL_LEVELS.indexOf(lv), prev = S.progress[lv.id], next = ALL_LEVELS[i + 1];
+  S.progress[lv.id] = { stars: Math.max(stars, prev ? prev.stars : 0) }; saveState(); App.handler = null; meter(1);
+  Sound.fanfare(); later(() => Sound.burp(), 750); later(() => say(pick(['Burp! That was yummy!', 'Yum yum! You did it!', 'Burp! More please!'])), 1250);
+  showResult({ stars, title: pick(['Yummy!', 'Burp!', 'Plonk is full!', 'Delicious!']), text: prev ? 'You fed Plonk again.' : 'You fed Plonk and won a sticker.', sticker: prev ? '' : STICKERS[i],
+    btns: [next && ['Next ▶', 'sun', () => openLevel(next)], ['Again', '', () => openLevel(lv)], ['Map', '', () => show('kids')]].filter(Boolean) });
+}
+
+/* ========== the kids' games ========== */
+const ACTS = {
+  free(lv) {
+    stage.setRange(lv.range[0], lv.range[1]); let n = 0;
+    App.handler = (m, src) => { if (src === 'mic?') return; n++; stage.burst(m); stage.happy(); stage.lookAt = m; if (n % 3 === 0) stage.word(pick(YUMS), m); meter(n / lv.goal); if (n >= lv.goal) { App.handler = null; later(() => finishLevel(3), 600); } };
+    bubble(lv.say);
+  },
+  highlow(lv) {
+    stage.setRange(48, 96); stage.interactive = false; stage.labels = 'off';
+    $('#panel').innerHTML = '<div class="hl"><button class="hl-b" data-a="low"><span>🐻</span>Low</button><button class="hl-b again" data-a="again"><span>🔊</span>Again</button><button class="hl-b" data-a="high"><span>🐦</span>High</button></div>';
+    let i = 0, miss = 0, cur = '', last = [], busy = true, notes = [];
+    const cue = () => { stage.lit.clear(); Mic.hold(1.4); notes.forEach((m, k) => Sound.play(m, 0.9, 0.32, k * 0.3)); busy = false; };
+    const next = () => {
+      cur = Math.random() < 0.5 ? 'high' : 'low'; if (last[0] === cur && last[1] === cur) cur = cur === 'high' ? 'low' : 'high'; last = [cur, last[0]];
+      const b = cur === 'high' ? 84 + Math.floor(Math.random() * 6) : 48 + Math.floor(Math.random() * 4); notes = cur === 'high' ? [b, b + 4, b + 7] : [b + 7, b + 3, b];
+      setBubble('Bird or bear?'); cue();
+    };
+    $('#panel').onclick = e => {
+      const btn = e.target.closest('.hl-b'); if (!btn || busy) return; const a = btn.dataset.a;
+      if (a === 'again') return cue();
+      if (a === cur) {
+        busy = true; i++; meter(i / lv.rounds); Sound.yum(); stage.happy(); notes.forEach(m => stage.lit.set(m, pcColor(m))); stage.lookAt = notes[0];
+        setBubble(cur === 'high' ? 'Yes! A tweety bird, up high.' : 'Yes! A growly bear, down low.');
+        if (i >= lv.rounds) later(() => finishLevel(miss === 0 ? 3 : miss <= 2 ? 2 : 1), 1000); else later(next, 1400);
+      } else { miss++; Sound.bonk(); stage.yuck(); btn.classList.add('no'); setTimeout(() => btn.classList.remove('no'), 350); busy = true; later(cue, 600); }
+    };
+    bubble(lv.say, next);
+  },
+  find(lv) {
+    stage.setRange(lv.range[0], lv.range[1]);
+    const groups = size => { const out = []; let g = []; for (let m = stage.lo; m <= stage.hi; m++) if (isBlack(m)) { g.push(m); if (pc(m) === 3 || pc(m) === 10) { out.push(g); g = []; } } return out.filter(x => x.length === size); };
+    let ti = 0, miss = 0, wrongRun = 0, found = new Set(), targets = [], hold = false; const total = lv.tasks.length;
+    const setup = () => {
+      const t = lv.tasks[ti]; found = new Set(); wrongRun = 0; stage.lit.clear(); stage.targets.clear(); hold = false;
+      if (t.k === 'pc') {
+        targets = []; for (let m = stage.lo; m <= stage.hi; m++) if (pc(m) === t.pc) targets.push([m]);
+        const L = NAMES[t.pc], big = SNACK[t.pc] + ' ' + L;
+        if (ti === 0) bubble(lv.say, null, big); else bubble(t.all ? 'Find every ' + L + '!' : 'Where is ' + L + '?', null, big);
+      } else { targets = groups(t.k === 'g2' ? 2 : 3); if (ti === 0) bubble(lv.say); else bubble(t.k === 'g2' ? 'Find the twins!' : 'Find the triplets!'); }
+    };
+    App.handler = (m, src) => {
+      if (src === 'mic?' || hold) return; const t = lv.tasks[ti]; if (!t) return;
+      let g = targets.find(x => x.includes(m)); if (!g && (src === 'mic' || src === 'midi')) g = targets.find(x => x.some(y => pc(y) === pc(m)));
+      if (g) {
+        if (found.has(g) && t.all) return;
+        found.add(g); stage.targets.clear(); g.forEach(x => stage.lit.set(x, pcColor(x))); stage.burst(g[0]); stage.happy(); stage.lookAt = g[0]; wrongRun = 0;
+        if (found.size >= (t.all ? targets.length : 1)) {
+          ti++; meter(ti / total); hold = true; stage.word(pick(YUMS), g[0]);
+          if (ti >= total) { App.handler = null; later(() => finishLevel(miss <= 1 ? 3 : miss <= 4 ? 2 : 1), 800); } else later(setup, 900);
+        } else stage.word('One more!', g[0]);
+      } else if (src === 'mic' && (m < stage.lo - 1 || m > stage.hi + 1)) { /* stray sound far from these keys */ }
+      else { if (src !== 'mic') miss++; wrongRun++; stage.yuck(m); if (wrongRun >= 2) for (const x of targets) if (!found.has(x)) x.forEach(y => stage.targets.set(y, { color: pcColor(y), strong: true })); }
+    };
+    setup();
+  },
+  echo(lv) {
+    stage.setRange(lv.range[0], lv.range[1]); let si = 0, pos = 0, fails = 0, here = 0, my = false;
+    const hint = () => { stage.targets.clear(); const m = lv.seqs[si] && lv.seqs[si][pos]; if (m != null) stage.targets.set(m, { color: pcColor(m), strong: true }); };
+    const demo = () => {
+      my = false; pos = 0; stage.targets.clear(); setBubble('Watch and listen…'); const seq = lv.seqs[si]; Mic.hold(seq.length * 0.6 + 1);
+      seq.forEach((m, k) => later(() => { Sound.play(m, 0.9, 0.42); stage.lit.set(m, pcColor(m)); stage.lookAt = m; later(() => stage.lit.delete(m), 400); }, 400 + k * 600));
+      later(() => { my = true; setBubble('Your turn!'); if (here >= 2) hint(); }, 400 + seq.length * 600 + 50);
+    };
+    App.handler = (m, src) => {
+      if (!my || src === 'mic?') return; const seq = lv.seqs[si], want = seq[pos];
+      if (m === want || ((src === 'mic' || src === 'midi') && pc(m) === pc(want))) {
+        pos++; stage.burst(m); stage.happy(); if (here >= 2) hint();
+        if (pos >= seq.length) {
+          my = false; si++; here = 0; stage.targets.clear(); meter(si / lv.seqs.length); stage.word(pick(YUMS), m);
+          if (si >= lv.seqs.length) later(() => finishLevel(fails === 0 ? 3 : fails <= 2 ? 2 : 1), 800); else later(demo, 1200);
+        }
+      } else { fails++; here++; my = false; stage.yuck(m); setBubble('Oops! Watch again.'); later(demo, 1000); }
+    };
+    bubble(lv.say, demo);
+  },
+  finger(lv) {
+    const left = lv.hand === 'L', keys = left ? [55, 53, 52, 50, 48] : [60, 62, 64, 65, 67];
+    stage.setRange(left ? 48 : 60, left ? 55 : 67); stage.interactive = false;
+    keys.forEach((k, i) => stage.targets.set(k, { color: 'rgba(0,0,0,0)', finger: i + 1 }));
+    const F = [[86, 224, -54, 96], [120, 170, -13, 118], [160, 158, 0, 134], [200, 168, 12, 118], [236, 198, 27, 92]];
+    $('#panel').innerHTML = '<svg class="hand" viewBox="0 0 320 300" role="group" aria-label="A hand with numbered fingers">' + F.map(([x, y, a, h], i) => {
+      if (left) { x = 320 - x; a = -a; }
+      return `<g class="fin" data-f="${i + 1}" transform="translate(${x} ${y}) rotate(${a})"><rect x="-21" y="${-h}" width="42" height="${h + 34}" rx="21"/><circle cx="0" cy="${24 - h}" r="16"/><text x="0" y="${24 - h}" transform="rotate(${-a} 0 ${24 - h})">${i + 1}</text></g>`;
+    }).join('') + '<ellipse class="palm" cx="160" cy="240" rx="88" ry="60"/></svg>';
+    let i = 0, miss = 0, want = 0, ok = false;
+    const ask = () => { let w; do { w = 1 + Math.floor(Math.random() * 5); } while (w === want); want = w; ok = true; bubble('Tap finger number ' + w + '!', null, String(w)); };
+    $('#panel').onclick = e => {
+      const f = e.target.closest('.fin'); if (!f || !ok) return;
+      if (+f.dataset.f === want) {
+        ok = false; i++; meter(i / lv.rounds); f.classList.add('yes'); const key = keys[want - 1]; Sound.play(key, 0.9, 0.5); stage.lit.clear(); stage.lit.set(key, pcColor(key)); stage.burst(key); stage.happy(); stage.lookAt = key;
+        later(() => { f.classList.remove('yes'); if (i >= lv.rounds) finishLevel(miss === 0 ? 3 : miss <= 2 ? 2 : 1); else ask(); }, 900);
+      } else { miss++; f.classList.add('no'); Sound.bonk(); stage.yuck(); setTimeout(() => f.classList.remove('no'), 350); }
+    };
+    bubble(lv.say, ask);
+  },
+  song(lv) {
+    const sg = makeSong(lv.tune); let lo = 127, hi = 0; for (const n of sg.notes) { lo = Math.min(lo, n.midi); hi = Math.max(hi, n.midi); }
+    stage.fit(lo, hi, 7); stage.snacks = true; stage.lookahead = 4;
+    const pl = App.player = new Player(stage, sg, { mode: 'wait', kid: true, onEnd: r => finishLevel(r.stars) });
+    App.handler = (m, src) => pl.noteOn(m, src); App.tickAct = () => { if (pl.mode === 'wait') meter(pl.steps.length ? pl.si / pl.steps.length : 0); };
+    $('#pHear').hidden = false; $('#pHear').textContent = '👂 Hear it'; pl.start(); bubble(lv.say);
+  }
+};
+function hearIt() {
+  const pl = App.player; if (!pl) return; const btn = $('#pHear');
+  const back = () => { pl.time = pl.startT; pl.set('mode', 'wait'); pl.start(); btn.textContent = '👂 Hear it'; setBubble('Your turn! Feed me the snacks.'); };
+  if (pl.mode === 'listen') return back();
+  hush(); pl.time = pl.startT; pl.set('mode', 'listen'); pl.onListenEnd = back; pl.start(); btn.textContent = '✋ My turn'; setBubble('Listen first…');
+}
+
+/* ========== song player ========== */
+const Mine = {
+  list: [], mem: new Map(),
+  load() { try { this.list = JSON.parse(localStorage.getItem('plonk.songs')) || []; } catch (e) { this.list = []; } },
+  save() { const keep = this.list.filter(s => s.b64); for (let tries = 0; tries < 4; tries++) { try { localStorage.setItem('plonk.songs', JSON.stringify(keep)); return; } catch (e) { const drop = keep.pop(); if (!drop) return; drop.b64 = ''; } } }
+};
+function b64enc(buf) { let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+function b64dec(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; }
+async function addFile(file) {
+  const err = $('#upErr'); err.hidden = true;
+  try {
+    const buf = await file.arrayBuffer(), name = (file.name || 'My song').replace(/\.(mid|midi|kar|rmi)$/i, '').replace(/[_-]+/g, ' ').trim() || 'My song';
+    const song = midiToSong(buf, name);
+    Mine.mem.set(name, buf); Mine.list = Mine.list.filter(s => s.name !== name); Mine.list.unshift({ name, b64: buf.byteLength < 350000 ? b64enc(buf) : '' });
+    if (Mine.list.length > 12) Mine.list.length = 12; Mine.save(); openSong(song);
+  } catch (e) { err.textContent = (e && e.message) || 'Plonk could not read that file.'; err.hidden = false; }
+}
+function openMine(i) {
+  const s = Mine.list[i]; if (!s) return;
+  try { const buf = Mine.mem.get(s.name) || (s.b64 ? b64dec(s.b64) : null); if (!buf) throw new Error('That song was too big to keep. Choose the file again.'); openSong(midiToSong(buf, s.name)); }
+  catch (e) { const err = $('#upErr'); err.textContent = e.message; err.hidden = false; }
+}
+function renderSongs() {
+  const st = id => S.best[id] ? starStr(S.best[id]) : '';
+  $('#mine').innerHTML = Mine.list.map((s, i) => `<div class="song" role="button" tabindex="0" data-mine="${i}"><span class="s-main"><span class="s-name">${esc(s.name)}</span><span class="s-sub">Your MIDI file</span></span><span class="s-st">${st('u:' + s.name)}</span><button class="s-del" data-del="${i}" aria-label="Remove ${esc(s.name)}">✕</button></div>`).join('');
+  $('#mineH').hidden = $('#mine').hidden = !Mine.list.length;
+  $('#builtin').innerHTML = LIBRARY.map(([k, lvl, hands]) => `<button class="song" data-b="${k}"><span class="s-main"><span class="s-name">${esc(TUNES[k].name)}</span><span class="s-sub">${lvl} · ${hands}</span></span><span class="s-st">${st('b:' + k)}</span></button>`).join('');
+}
+function fitSong(song) {
+  let lo = 127, hi = 0; for (const n of song.notes) if (n.hand === 'R' || n.hand === 'L') { lo = Math.min(lo, n.midi); hi = Math.max(hi, n.midi); }
+  if (hi < lo) for (const n of song.notes) if (n.hand !== 'off') { lo = Math.min(lo, n.midi); hi = Math.max(hi, n.midi); }
+  if (hi < lo) { lo = 60; hi = 72; } stage.fit(lo, hi, 10);
+}
+function openSong(song) {
+  App.song = song; openPlay({ kid: false, title: song.name, layout: 'song', roll: true, back: 'songs', song: true }); fitSong(song);
+  const pl = App.player = new Player(stage, song, { mode: 'wait', onEnd: songDone });
+  App.handler = (m, src) => pl.noteOn(m, src); $('#hud').hidden = false; chips(); pl.start();
+}
+function songDone(r) {
+  const pl = App.player, id = App.song.id; if (!pl.loop) { S.best[id] = Math.max(S.best[id] || 0, r.stars); saveState(); }
+  Sound.fanfare();
+  const bits = [Math.round(r.acc * 100) + '% right', 'best streak ' + r.best]; if (r.wrong) bits.push(r.wrong + ' wrong'); if (r.miss) bits.push(r.miss + ' missed');
+  showResult({ stars: r.stars, title: r.stars === 3 ? 'Beautiful!' : r.stars === 2 ? 'Nicely done!' : 'Keep going!', text: bits.join(' · '),
+    btns: [['Play again', 'sun', () => { hideResult(); pl.restart(); }], r.stars < 3 && pl.speed > 0.5 ? ['Try slower', '', () => { hideResult(); pl.speed = Math.max(0.3, Math.round((pl.speed - 0.2) * 10) / 10); chips(); pl.restart(); }] : null, ['Songs', '', () => show('songs')]].filter(Boolean) });
+}
+function chips() {
+  const pl = App.player; if (!pl || App.kid) return; const sg = App.song;
+  $$('#cMode button').forEach(b => b.classList.toggle('on', b.dataset.v === pl.mode)); $$('#cHands button').forEach(b => b.classList.toggle('on', b.dataset.v === pl.hands));
+  $('#cSpeed').textContent = Math.round(pl.speed * 100) + '%'; $('#cEasy').classList.toggle('on', pl.easy); $('#cMetro').classList.toggle('on', pl.metro);
+  $('#cLoop').textContent = !pl.loop ? 'Loop a part' : pl.loop.b == null ? 'Tap again where the loop ends' : 'Loop on ✕'; $('#cLoop').classList.toggle('on', !!pl.loop);
+  $('#cHands').hidden = !(sg.notes.some(n => n.hand === 'L') && sg.notes.some(n => n.hand === 'R'));
+  $('#cTracks').hidden = !!sg.builtin; $('#cMetro').hidden = !(sg.beats && sg.beats.length);
+}
+function hud() {
+  const pl = App.player; if (!pl) return;
+  $('#pPlayIcon').setAttribute('d', pl.playing ? 'M8 5v14M16 5v14' : 'M8 5l11 7-11 7z');
+  if (App.kid) return; const Z = pl.stats;
+  $('#hud').textContent = pl.mode === 'listen' ? 'Listening' : Z.hits + ' of ' + pl.play.length + ' notes' + (Z.streak > 2 ? ' · streak ' + Z.streak : '') + (pl.waiting ? ' · waiting for you' : '');
+}
+
+/* ========== sheets ========== */
+function openSheet(title, html, wire) { $('#sheetTitle').textContent = title; $('#sheetBody').innerHTML = html; $('#sheet').hidden = false; sheetTick = null; if (wire) wire($('#sheetBody')); $('#sheetClose').focus(); }
+function closeSheet() { $('#sheet').hidden = true; sheetTick = null; window.refreshConnect = null; }
+function connBtn() { const on = Mic.active || MidiIn.names.length > 0; for (const id of ['#pConn', '#goConnect', '#songsConnect']) $(id).classList.toggle('on', on); }
+function micMsg(e) {
+  const n = e && e.name;
+  if (n === 'NoMic') return 'This browser cannot use the microphone. Try Chrome or Safari.';
+  if (n === 'NotAllowedError' || n === 'SecurityError') return 'The microphone is blocked here. Open Plonk in its own browser tab from a web link, then allow the microphone.';
+  if (n === 'NotFoundError') return 'No microphone was found on this device.';
+  return 'The microphone did not start. Close other apps that use it and try again.';
+}
+function connectSheet() {
+  openSheet('Connect a piano', `
+    <div class="opt"><div><b>🎤 Listen with the microphone</b><p>For a real piano, or any keyboard with its own speakers. Put this device close to the piano. Single notes are heard best; big chords are harder.</p><p class="status" id="micStatus"></p></div><button class="btn sun" id="micBtn"></button></div>
+    <label class="row">How well Plonk hears <select id="micSens"><option value="0">A little (noisy room)</option><option value="1">Normal</option><option value="2">A lot (quiet piano)</option></select></label>
+    <div class="opt"><div><b>🎹 Plug in a MIDI keyboard</b><p>For digital pianos and keyboards with a USB cable. The most exact way, and chords work too.</p><p class="status" id="midiStatus"></p></div><button class="btn sun" id="midiBtn">Connect</button></div>
+    <label class="row">Play Plonk’s piano sound for my MIDI keyboard <input type="checkbox" id="midiSound"></label>
+    <div class="opt"><div><b>👆 Touch or computer keys</b><p>Always on. Tap the teeth on screen, or use the computer keys A S D F G H J K for white keys and W E T Y U for black keys. Z and X move an octave.</p></div></div>`, b => {
+    const refresh = () => {
+      $('#micBtn', b).textContent = Mic.active ? 'Stop' : 'Start listening';
+      const ms = $('#micStatus', b); ms.className = 'status' + (Conn.micErr ? ' bad' : ''); ms.textContent = Conn.micErr || (Mic.active ? 'Listening…' : '');
+      const ds = $('#midiStatus', b); ds.className = 'status' + (Conn.midiErr ? ' bad' : '');
+      ds.textContent = Conn.midiErr || (MidiIn.access ? (MidiIn.names.length ? 'Connected: ' + MidiIn.names.join(', ') : 'No keyboard found yet. Plug it in and switch it on.') : '');
+      connBtn();
+    };
+    window.refreshConnect = refresh; $('#micSens', b).value = String(S.settings.micSens); $('#midiSound', b).checked = S.settings.midiSound;
+    $('#micSens', b).onchange = e => { S.settings.micSens = +e.target.value; saveState(); };
+    $('#midiSound', b).onchange = e => { S.settings.midiSound = e.target.checked; saveState(); };
+    $('#micBtn', b).onclick = async () => { Conn.micErr = ''; if (Mic.active) Mic.stop(); else { try { await Mic.start(); } catch (e) { Conn.micErr = micMsg(e); } } refresh(); };
+    $('#midiBtn', b).onclick = async () => { Conn.midiErr = ''; try { await MidiIn.connect(); } catch (e) { Conn.midiErr = e && e.name === 'NoMidi' ? 'This browser does not support MIDI keyboards. Use Chrome or Edge.' : 'MIDI is blocked here. Open Plonk in its own browser tab from a web link, then allow MIDI.'; } refresh(); };
+    let at = 0; sheetTick = now => { if (Mic.active && !Conn.micErr && now - at > 0.15) { at = now; const h = Mic.heard; $('#micStatus', b).textContent = h != null ? 'Listening… I hear ' + NAMES[pc(h)] + (Math.floor(h / 12) - 1) : 'Listening… play a note'; } };
+    refresh();
+  });
+}
+function applySettings() { for (const st of [hero, stage]) { st.labels = S.settings.labels; st.colors = S.settings.colors; } saveState(); }
+function settingsSheet() {
+  const s = S.settings, sel = (id, opts, v) => `<select id="${id}">` + opts.map(([val, label]) => `<option value="${val}"${val === v ? ' selected' : ''}>${label}</option>`).join('') + '</select>';
+  openSheet('Settings', `
+    <label class="row">Plonk talks out loud <input type="checkbox" id="sVoice"${s.voice ? ' checked' : ''}></label>
+    <label class="row">Sound volume <input type="range" id="sVol" min="0" max="1" step="0.05" value="${s.volume}"></label>
+    <label class="row">Note names ${sel('sLabels', [['letters', 'C D E'], ['solfege', 'Do Re Mi'], ['off', 'Hidden']], s.labels)}</label>
+    <label class="row">Note colours ${sel('sColors', [['rainbow', 'One colour per note'], ['hands', 'One colour per hand']], s.colors)}</label>
+    <label class="row">Open every kids’ level (for grown-ups) <input type="checkbox" id="sUnlock"${s.unlockAll ? ' checked' : ''}></label>
+    <div class="row"><span>Stars and stickers</span><button class="btn sm berry" id="sReset">Erase progress</button></div>
+    <p class="fine">Progress and your added songs are kept in this browser on this device only.</p>`, b => {
+    $('#sVoice', b).onchange = e => { s.voice = e.target.checked; if (!s.voice) hush(); saveState(); };
+    $('#sVol', b).oninput = e => { Sound.setVolume(+e.target.value); saveState(); };
+    $('#sLabels', b).onchange = e => { s.labels = e.target.value; applySettings(); };
+    $('#sColors', b).onchange = e => { s.colors = e.target.value; applySettings(); };
+    $('#sUnlock', b).onchange = e => { s.unlockAll = e.target.checked; saveState(); if (App.screen === 'kids') renderMap(); };
+    let armed = false; $('#sReset', b).onclick = e => { if (!armed) { armed = true; e.target.textContent = 'Tap again to erase'; return; } S.progress = {}; S.best = {}; saveState(); e.target.textContent = 'Erased'; e.target.disabled = true; if (App.screen === 'kids') renderMap(); $('#homeStars').textContent = '0'; };
+  });
+}
+function tracksSheet() {
+  const sg = App.song, pl = App.player; if (!sg || !pl) return; const names = n => NAMES[pc(n)] + (Math.floor(n / 12) - 1);
+  openSheet('Tracks', '<p class="fine">Choose which part each hand plays. Background parts play by themselves.</p>' + sg.parts.map((p, i) => `<label class="row"><span><b>${esc(p.name)}</b><br><span class="fine">${p.count} notes · ${names(p.lo)} to ${names(p.hi)}</span></span><select data-p="${i}">` +
+    [['R', 'Right hand'], ['L', 'Left hand'], ['split', 'Both hands, split at middle C'], ['bg', 'Background'], ['off', 'Off']].map(([v, l]) => `<option value="${v}"${p.role === v ? ' selected' : ''}>${l}</option>`).join('') + '</select></label>').join(''), b => {
+    b.onchange = e => { const i = e.target.dataset.p; if (i == null) return; sg.parts[+i].role = e.target.value; applyRoles(sg); fitSong(sg); pl.rebuild(); chips(); };
+  });
+}
+function stickerSheet() {
+  openSheet('Sticker book', '<div class="stick">' + ALL_LEVELS.map((l, i) => S.progress[l.id] ? `<span title="${esc(l.title)}">${STICKERS[i]}</span>` : '<span class="no">?</span>').join('') + `</div><p class="fine">${doneCount()} of ${ALL_LEVELS.length} stickers. Finish a level to win its sticker.</p>`);
+}
+function hideResult() { $('#result').hidden = true; }
+function showResult(o) {
+  $('#resStars').innerHTML = '★'.repeat(o.stars) + '<i>' + '★'.repeat(3 - o.stars) + '</i>'; $('#resTitle').textContent = o.title; $('#resText').textContent = o.text;
+  $('#resSticker').innerHTML = o.sticker ? o.sticker + '<small>New sticker</small>' : '';
+  const bx = $('#resBtns'), ov = $('#result'); bx.innerHTML = '';
+  for (const [label, cls, fn] of o.btns) { const b = document.createElement('button'); b.className = 'btn ' + cls; b.textContent = label; b.onclick = fn; bx.appendChild(b); }
+  $$('.conf', ov).forEach(c => c.remove()); ov.hidden = false;
+  if (o.stars >= 2) for (let i = 0; i < 26; i++) { const c = document.createElement('i'); c.className = 'conf'; c.style.cssText = `left:${Math.random() * 100}%;background:${pick(PC_COL)};animation-duration:${1.6 + Math.random() * 1.8}s;animation-delay:${Math.random() * 0.5}s`; ov.appendChild(c); }
+}
+
+/* ========== start ========== */
+function start(data) {
+  loadState(); mergeState(data); Mine.load();
+  hero = new Stage($('#hero'), { roll: false }); hero.setRange(60, 72); stage = new Stage($('#stage'), { roll: true });
+  for (const st of [hero, stage]) { st.onNoteOn = m => Input.on(m, 'touch'); st.onNoteOff = m => Input.off(m, 'touch'); }
+  stage.onScrub = d => { if (App.player && !App.kid) App.player.scrub(d); };
+  stage.onTap = () => { if (App.player && !App.kid) App.player.toggle(); };
+  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => Sound.unlock(), { capture: true, passive: true });
+  $('#soundOn').onclick = () => {
+    Sound.restart(); soundTries++; const btn = $('#soundOn');
+    setTimeout(() => { if (Sound.state() === 'running') { Sound.fanfare(); btn.hidden = true; } else btn.textContent = soundTries > 1 ? '🔇 Sound is blocked here (' + Sound.state() + '). Tap to try again' : '🔈 Tap once more to turn sound on'; }, 350);
+  };
+  $('#goKids').onclick = () => show('kids'); $('#goSongs').onclick = () => show('songs');
+  for (const id of ['#goConnect', '#songsConnect', '#pConn']) $(id).onclick = connectSheet;
+  $('#goSettings').onclick = $('#cSet').onclick = settingsSheet; $('#stickersBtn').onclick = stickerSheet;
+  $$('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
+  $('#map').addEventListener('click', e => { const b = e.target.closest('.lv'); if (b && !b.disabled) openLevel(ALL_LEVELS.find(l => l.id === b.dataset.lv)); });
+  $('#pBack').onclick = () => show(App.back);
+  $('#pRestart').onclick = () => { const pl = App.player; if (!pl) return; hideResult(); if (pl.mode === 'listen' && App.kid) hearIt(); else pl.restart(); };
+  $('#pPlay').onclick = () => App.player && App.player.toggle(); $('#pHear').onclick = hearIt;
+  $('#bubble').onclick = () => { if (App.lastSay) say(App.lastSay); };
+  $('#cMode').onclick = e => { const v = e.target.dataset.v; if (v && App.player) { App.player.set('mode', v); App.player.start(); chips(); } };
+  $('#cHands').onclick = e => { const v = e.target.dataset.v; if (v && App.player) { App.player.set('hands', v); chips(); } };
+  const speed = d => { const pl = App.player; if (pl) { pl.speed = clamp(Math.round((pl.speed + d) * 10) / 10, 0.3, 1.5); chips(); } };
+  $('#cSlow').onclick = () => speed(-0.1); $('#cFast').onclick = () => speed(0.1);
+  $('#cEasy').onclick = () => { const pl = App.player; if (pl) { pl.set('easy', !pl.easy); chips(); } };
+  $('#cMetro').onclick = () => { const pl = App.player; if (pl) { pl.metro = !pl.metro; chips(); } };
+  $('#cLoop').onclick = () => {
+    const pl = App.player; if (!pl) return;
+    if (!pl.loop) pl.loop = { a: Math.max(0, pl.time), b: null };
+    else if (pl.loop.b == null && pl.time > pl.loop.a + 0.5) { pl.loop.b = pl.time; pl.seek(pl.loop.a); }
+    else pl.loop = null;
+    chips();
+  };
+  $('#cTracks').onclick = tracksSheet;
+  $('#sheetClose').onclick = closeSheet; $('#sheet').addEventListener('pointerdown', e => { if (e.target.id === 'sheet') closeSheet(); });
+  $('#pick').onclick = () => $('#file').click();
+  $('#file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) addFile(f); };
+  const drop = $('#songs');
+  drop.addEventListener('dragover', e => { e.preventDefault(); $('#drop').classList.add('over'); });
+  drop.addEventListener('dragleave', () => $('#drop').classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); $('#drop').classList.remove('over'); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) addFile(f); });
+  $('#songList').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]'); if (del) { Mine.list.splice(+del.dataset.del, 1); Mine.save(); renderSongs(); return; }
+    const mine = e.target.closest('[data-mine]'); if (mine) return openMine(+mine.dataset.mine);
+    const b = e.target.closest('[data-b]'); if (b) openSong(makeSong(b.dataset.b));
+  });
+  $('#songList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-mine]')) { e.preventDefault(); openMine(+e.target.dataset.mine); } });
+  addEventListener('hashchange', route);
+  document.addEventListener('visibilitychange', () => { if (document.hidden && App.player && !App.kid) App.player.pause(); if (document.hidden) Sound.allOff(); });
+  App.handler = heroTap; $('#homeStars').textContent = totalStars(); route();
+  try { const hot = window.claude && window.claude.hot; if (hot && hot.snapshot) hot.snapshot(() => ({ settings: S.settings, progress: S.progress, best: S.best })); } catch (e) { }
+  requestAnimationFrame(loop);
+}
+(function () { const hot = window.claude && window.claude.hot; if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {}); })();
+</script>
+</body>
+</html>
