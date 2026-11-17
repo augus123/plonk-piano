@@ -518,13 +518,21 @@ const Mic = {
   async start() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { const e = new Error('nomic'); e.name = 'NoMic'; throw e; }
     if (!Sound.init()) { const e = new Error('noaudio'); e.name = 'NoMic'; throw e; }
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-    const c = Sound.ctx; this.src = c.createMediaStreamSource(this.stream);
+    const sess = navigator.audioSession;  // iPhone: the "playback only" setting that beats the silent switch also refuses the microphone
+    try { if (sess) sess.type = 'play-and-record'; } catch (e) { }
+    try { if (Sound.keep) Sound.keep.pause(); } catch (e) { }
+    try {
+      try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); }
+      catch (e) { if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'NotFoundError')) throw e; this.stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    } catch (e) { try { if (sess) sess.type = 'playback'; } catch (_) { } throw e; }
+    const c = Sound.ctx; if (c.state !== 'running') { try { await c.resume(); } catch (e) { } }
+    this.src = c.createMediaStreamSource(this.stream);
     this.an = c.createAnalyser(); this.an.fftSize = 8192; this.an.smoothingTimeConstant = 0;
     this.src.connect(this.an); this.buf = new Float32Array(this.an.frequencyBinCount); this.st.clear(); this.active = true;
   },
   stop() {
     this.active = false; try { this.stream.getTracks().forEach(t => t.stop()); this.src.disconnect(); } catch (e) { }
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
     for (const [m, s] of this.st) if (s.on) Input.off(m, 'mic'); this.st.clear(); this.heard = null;
   },
   hold(sec) { this.holdUntil = performance.now() / 1000 + sec; },
@@ -1279,7 +1287,7 @@ function micMsg(e) {
   if (n === 'NoMic') return 'This browser cannot use the microphone. Try Chrome or Safari.';
   if (n === 'NotAllowedError' || n === 'SecurityError') return 'The microphone is blocked here. Open Plonk in its own browser tab from a web link, then allow the microphone.';
   if (n === 'NotFoundError') return 'No microphone was found on this device.';
-  return 'The microphone did not start. Close other apps that use it and try again.';
+  return 'The microphone did not start. Close other apps that use it and try again. (' + (n || 'Error') + (e && e.message ? ': ' + String(e.message).slice(0, 90) : '') + ')';
 }
 function connectSheet() {
   openSheet('Connect a piano', `
